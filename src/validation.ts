@@ -23,6 +23,13 @@ export const GetSubtitlesRequestSchema = Type.Object({
       description: 'Language code (e.g., en, ru, en-US)',
     })
   ),
+  cookies: Type.Optional(
+    Type.String({
+      minLength: 1,
+      maxLength: 8192,
+      description: 'Cookie header string (e.g., "SID=...; HSID=...")',
+    })
+  ),
 });
 
 export type GetSubtitlesRequest = Static<typeof GetSubtitlesRequestSchema>;
@@ -114,6 +121,29 @@ export function sanitizeLang(lang: string): string | null {
 }
 
 /**
+ * Sanitizes cookies header value
+ * @param cookies - Cookie header string to sanitize
+ * @returns sanitized cookies or null if contains invalid characters
+ */
+export function sanitizeCookies(cookies: string): string | null {
+  if (!cookies || typeof cookies !== 'string') {
+    return null;
+  }
+
+  const sanitized = cookies.trim();
+  if (sanitized.length === 0 || sanitized.length > 8192) {
+    return null;
+  }
+
+  // Prevent header injection by rejecting CR/LF
+  if (/[\r\n]/.test(sanitized)) {
+    return null;
+  }
+
+  return sanitized;
+}
+
+/**
  * Validates request and downloads subtitles
  * @param logger - Fastify logger instance for structured logging
  * @returns object with subtitle data or null in case of error
@@ -128,7 +158,7 @@ export async function validateAndDownloadSubtitles(
   lang: string;
   subtitlesContent: string;
 } | null> {
-  const { url, type = 'auto', lang = 'en' } = request;
+  const { url, type = 'auto', lang = 'en', cookies } = request;
 
   // Validate URL for valid YouTube URL
   // (basic validation already done by TypeBox, but check YouTube-specific requirements)
@@ -170,8 +200,27 @@ export async function validateAndDownloadSubtitles(
     return null;
   }
 
+  let sanitizedCookies: string | undefined;
+  if (cookies !== undefined) {
+    const sanitized = sanitizeCookies(cookies);
+    if (!sanitized) {
+      reply.code(400).send({
+        error: 'Invalid cookies',
+        message: 'Cookies value contains invalid characters',
+      });
+      return null;
+    }
+    sanitizedCookies = sanitized;
+  }
+
   // Download subtitles with specified parameters
-  const subtitlesContent = await downloadSubtitles(videoId, type, sanitizedLang, logger);
+  const subtitlesContent = await downloadSubtitles(
+    videoId,
+    type,
+    sanitizedLang,
+    logger,
+    sanitizedCookies
+  );
 
   if (!subtitlesContent) {
     reply.code(404).send({

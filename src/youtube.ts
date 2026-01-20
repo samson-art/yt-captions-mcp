@@ -1,6 +1,6 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { readFile, unlink } from 'fs/promises';
+import { readFile, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { FastifyBaseLogger } from 'fastify';
@@ -37,12 +37,14 @@ export async function downloadSubtitles(
   videoId: string,
   type: 'official' | 'auto' = 'auto',
   lang: string = 'en',
-  logger?: FastifyBaseLogger
+  logger?: FastifyBaseLogger,
+  cookies?: string
 ): Promise<string | null> {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const tempDir = tmpdir();
   const timestamp = Date.now();
   const outputPath = join(tempDir, `subtitles_${videoId}_${timestamp}`);
+  const cookiesPath = cookies ? join(tempDir, `cookies_${videoId}_${timestamp}.txt`) : null;
 
   try {
     // Build command arguments depending on subtitle type
@@ -60,8 +62,14 @@ export async function downloadSubtitles(
       videoUrl, // videoUrl is built from sanitized videoId
     ];
 
+    if (cookies && cookiesPath) {
+      const cookiesFileContent = `# Netscape HTTP Cookie File\n${cookies}\n`;
+      await writeFile(cookiesPath, cookiesFileContent, { encoding: 'utf-8', mode: 0o600 });
+      args.splice(args.length - 1, 0, '--cookies', cookiesPath);
+    }
+
     logger?.info(
-      { videoId, type, lang },
+      { videoId, type, lang, hasCookies: Boolean(cookies) },
       `Downloading ${type} subtitles for ${videoId} in language ${lang}`
     );
 
@@ -89,6 +97,7 @@ export async function downloadSubtitles(
         // Check that file is not empty
         if (content.trim().length > 0) {
           await unlink(subtitleFile).catch(() => {});
+          if (cookiesPath) await unlink(cookiesPath).catch(() => {});
           return content;
         }
       }
@@ -111,6 +120,7 @@ export async function downloadSubtitles(
           const content = await readFile(subtitleFile, 'utf-8');
           if (content.trim().length > 0) {
             await unlink(subtitleFile).catch(() => {});
+            if (cookiesPath) await unlink(cookiesPath).catch(() => {});
             return content;
           }
         } catch (readError) {
@@ -119,9 +129,11 @@ export async function downloadSubtitles(
       }
     }
 
+    if (cookiesPath) await unlink(cookiesPath).catch(() => {});
     return null;
   } catch (error) {
     logger?.error({ error, videoId }, `Error downloading subtitles for ${videoId}`);
+    if (cookiesPath) await unlink(cookiesPath).catch(() => {});
     return null;
   }
 }

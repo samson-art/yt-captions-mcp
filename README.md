@@ -91,7 +91,8 @@ Retrieve cleaned subtitles (plain text without timestamps) from a YouTube video.
 {
   "url": "https://www.youtube.com/watch?v=VIDEO_ID",
   "type": "auto",
-  "lang": "en"
+  "lang": "en",
+  "cookies": "SID=...; HSID=..."
 }
 ```
 
@@ -99,6 +100,7 @@ Retrieve cleaned subtitles (plain text without timestamps) from a YouTube video.
 - `url` (required) - YouTube video URL
 - `type` (optional, default: `"auto"`) - Subtitle type: `"official"` (official subtitles) or `"auto"` (auto-generated subtitles)
 - `lang` (optional, default: `"en"`) - Subtitle language code (e.g., `"en"`, `"ru"`, `"es"`, `"fr"`)
+- `cookies` (optional) - Cookie header string (e.g., `"SID=...; HSID=..."`), used to create a temp `cookies.txt` for yt-dlp
 
 **Response (Success):**
 ```json
@@ -135,6 +137,13 @@ curl -X POST http://localhost:3000/api/subtitles \
   -d '{"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "type": "official", "lang": "ru"}'
 ```
 
+Auto-generated subtitles with cookies:
+```bash
+curl -X POST http://localhost:3000/api/subtitles \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "cookies": "SID=...; HSID=..."}'
+```
+
 Auto-generated subtitles in Spanish:
 ```bash
 curl -X POST http://localhost:3000/api/subtitles \
@@ -151,7 +160,8 @@ Retrieve raw subtitles from a YouTube video without cleaning (includes timestamp
 {
   "url": "https://www.youtube.com/watch?v=VIDEO_ID",
   "type": "auto",
-  "lang": "en"
+  "lang": "en",
+  "cookies": "SID=...; HSID=..."
 }
 ```
 
@@ -159,6 +169,7 @@ Retrieve raw subtitles from a YouTube video without cleaning (includes timestamp
 - `url` (required) - YouTube video URL
 - `type` (optional, default: `"auto"`) - Subtitle type: `"official"` or `"auto"`
 - `lang` (optional, default: `"en"`) - Subtitle language code
+- `cookies` (optional) - Cookie header string (e.g., `"SID=...; HSID=..."`), used to create a temp `cookies.txt` for yt-dlp
 
 **Response (Success):**
 ```json
