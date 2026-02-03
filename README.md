@@ -1,10 +1,57 @@
-# YouTube Captions MCP Server (stdio + HTTP)
+<div align="center">
+  <img src="./logo.webp" alt="yt-captions logo" width="160" />
 
-An **MCP server over stdio** (for local usage) and **HTTP/SSE** (for remote usage) that can fetch YouTube transcripts/subtitles via `yt-dlp`, with pagination for large responses. It works with **Cursor and other MCP hosts** that support stdio or HTTP transport. This repo also includes an optional REST API (Fastify), but the primary focus is MCP.
+  <h1>YouTube Captions MCP Server</h1>
+
+  <p>
+    <img alt="version" src="https://img.shields.io/badge/version-0.3.1-blue" />
+    <img alt="license" src="https://img.shields.io/badge/license-MIT-green" />
+    <img alt="docker" src="https://img.shields.io/badge/docker-available-0db7ed" />
+  </p>
+
+  <p>
+    An MCP server (stdio + HTTP/SSE) that fetches YouTube transcripts/subtitles via <code>yt-dlp</code>,
+    with pagination for large responses. Works with Cursor and other MCP hosts.
+  </p>
+
+  <p>
+    <a href="https://github.com/samson-art/yt-captions-downloader">GitHub</a>
+    ·
+    <a href="https://github.com/samson-art/yt-captions-downloader/issues">Issues</a>
+    ·
+    <a href="https://hub.docker.com/r/artsamsonov/yt-captions-mcp">Docker Hub</a>
+  </p>
+</div>
+
+## Overview
+
+This repository primarily ships an **MCP server**:
+
+- **stdio**: for local usage (e.g., Cursor running a local command).
+- **HTTP/SSE**: for remote usage (e.g., VPS + Tailscale).
+
+It also includes an optional **REST API** (Fastify), but MCP is the primary focus.
+
+## Features
+
+- **Transcripts + raw subtitles**: cleaned text or raw SRT/VTT.
+- **Language support**: official subtitles with auto-generated fallback.
+- **Pagination**: safe for large transcripts.
+- **Docker-first**: ready for local + remote deployment.
+- **Production-friendly HTTP**: optional auth + allowlists (see `CHANGELOG.md`).
+
+## Example usage (screenshot)
+
+Below is a real-world example of the same “summarize YouTube video” task without MCP vs with MCP:
+
+<picture>
+  <source srcset="./example-usage.webp" type="image/webp" />
+  <img src="./example-usage.webp" alt="Example usage: without MCP vs with MCP" />
+</picture>
 
 ## MCP quick start (recommended)
 
-### Docker Hub image
+### Docker Hub (stdio)
 
 - Image: `artsamsonov/yt-captions-mcp:latest`
 
@@ -13,28 +60,6 @@ Run locally (stdio mode):
 ```bash
 docker run --rm -i artsamsonov/yt-captions-mcp:latest
 ```
-
-### Remote MCP over HTTP (VPS + Tailscale)
-
-Run the HTTP/SSE MCP server on your VPS (default port `4200`) using docker-compose:
-
-```bash
-cp docker-compose.example.yml docker-compose.yml
-docker compose up -d yt-captions-mcp
-```
-
-**Claude Code (HTTP / streamable HTTP):**
-
-```bash
-claude mcp add --transport http yt-captions http://<tailscale-host>:4200/mcp
-```
-
-**Cursor (SSE):**
-
-- Add a new MCP server of type **SSE** with URL:
-  `http://<tailscale-host>:4200/sse`
-
-If you set `MCP_AUTH_TOKEN`, add `Authorization: Bearer <token>` in the client headers.
 
 ### Cursor MCP configuration (Docker)
 
@@ -51,24 +76,33 @@ Add to Cursor MCP settings (or create `.cursor/mcp.json`):
 }
 ```
 
-### Available MCP tools
+### Remote MCP over HTTP/SSE (VPS + Tailscale)
 
-- `get_transcript` — cleaned plain text subtitles (paginated)
-- `get_raw_subtitles` — raw SRT/VTT (paginated)
-- `get_available_subtitles` — list official vs auto language codes
-- `get_video_info` — basic metadata from `yt-dlp`
+Run the HTTP/SSE MCP server on your VPS (default port `4200`) using docker-compose:
 
-## Features
+```bash
+cp docker-compose.example.yml docker-compose.yml
+docker compose up -d yt-captions-mcp
+```
 
-- 🎬 Extract video ID from YouTube URLs
-- 📝 Download subtitles (official → auto-generated fallback)
-- 🌍 Support for multiple languages
-- 📄 SRT and VTT format support
-- 🧹 Clean subtitles (remove timestamps and formatting)
-- 📋 Return plain text or raw subtitle content
-- 🐳 Dockerized for easy deployment
-- 🚀 Built with Fastify for high performance
-- 🛡️ Rate limiting and error handling
+**Claude Code (HTTP / streamable HTTP):**
+
+```bash
+claude mcp add --transport http yt-captions http://<tailscale-host>:4200/mcp
+```
+
+**Cursor (SSE):**
+
+- Add a new MCP server of type **SSE** with URL `http://<tailscale-host>:4200/sse`
+
+If you set `MCP_AUTH_TOKEN`, add `Authorization: Bearer <token>` in the client headers.
+
+## MCP tools
+
+- `get_transcript`: cleaned plain text subtitles (paginated)
+- `get_raw_subtitles`: raw SRT/VTT (paginated)
+- `get_available_subtitles`: list official vs auto language codes
+- `get_video_info`: basic metadata from `yt-dlp`
 
 ## Requirements
 
@@ -274,13 +308,6 @@ curl -X POST http://localhost:3000/subtitles/raw \
 
 This project also ships an MCP server over stdio. It reuses the same `yt-dlp` based extraction and can return full transcript text or raw subtitles. Cursor configuration examples are provided below, but it should work with any MCP host that supports stdio.
 
-### Available Tools
-
-- `get_transcript` - cleaned plain text subtitles (supports pagination)
-- `get_raw_subtitles` - raw SRT/VTT (supports pagination)
-- `get_available_subtitles` - list official vs auto language codes
-- `get_video_info` - basic metadata from `yt-dlp`
-
 ### Pagination
 
 Tools that return large text accept:
@@ -406,6 +433,8 @@ This MCP server borrows the best ideas from existing implementations:
 │   └── youtube.ts        # YouTube subtitle downloading and parsing
 ├── dist/                 # Compiled JavaScript (generated)
 ├── Dockerfile            # Docker image configuration
+├── logo.webp             # Project logo used in README
+├── example-usage.webp    # Example usage screenshot used in README
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -444,6 +473,6 @@ See [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/samson-art/yt-captions-downloader/issues)
-- 💡 **Feature Requests**: [GitHub Issues](https://github.com/samson-art/yt-captions-downloader/issues)
-- 📧 **Contact**: [GitHub Profile](https://github.com/samson-art)
+- **Bug reports**: [GitHub Issues](https://github.com/samson-art/yt-captions-downloader/issues)
+- **Feature requests**: [GitHub Issues](https://github.com/samson-art/yt-captions-downloader/issues)
+- **Contact**: [GitHub Profile](https://github.com/samson-art)
