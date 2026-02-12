@@ -371,6 +371,7 @@ describe('mcp-core tools', () => {
       const handler = getTool(server, 'get_video_chapters');
 
       normalizeVideoInputMock.mockReturnValue(testUrl);
+      fetchYtDlpJsonMock.mockResolvedValue({ id: 'video123' });
       fetchVideoChaptersMock.mockResolvedValue(null);
 
       const result = await handler({ url: 'video123' }, {});
@@ -395,7 +396,10 @@ describe('mcp-core tools', () => {
 
       const result = await handler({ url: testUrl }, {});
 
-      expect(fetchVideoChaptersMock).toHaveBeenCalledWith(testUrl);
+      expect(fetchYtDlpJsonMock).toHaveBeenCalledWith(testUrl, expect.anything());
+      expect(fetchVideoChaptersMock).toHaveBeenCalledWith(testUrl, expect.anything(), {
+        id: 'video123',
+      });
       expect(result.structuredContent).toEqual({
         videoId: 'video123',
         chapters,
@@ -415,6 +419,9 @@ describe('mcp-core tools', () => {
 
       const result = await handler({ url: 'video123' }, {});
 
+      expect(fetchVideoChaptersMock).toHaveBeenCalledWith(testUrl, expect.anything(), {
+        id: 'video123',
+      });
       expect(result.structuredContent).toEqual({
         videoId: 'video123',
         chapters: [],

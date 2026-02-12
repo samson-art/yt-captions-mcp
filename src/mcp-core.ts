@@ -408,12 +408,12 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
         );
       }
 
-      const chapters = await fetchVideoChapters(url);
+      const data = await fetchYtDlpJson(url, log);
+      const chapters = await fetchVideoChapters(url, log, data);
       if (chapters === null) {
         return toolError('Failed to fetch chapters for this video.');
       }
 
-      const data = await fetchYtDlpJson(url);
       const videoId = data?.id ?? extractVideoId(url) ?? 'unknown';
 
       const text =

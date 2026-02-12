@@ -16,6 +16,7 @@ const {
   parseSubtitles,
   downloadSubtitles,
   fetchVideoInfo,
+  fetchVideoChapters,
   fetchYtDlpJson,
   findSubtitleFile,
   getYtDlpEnv,
@@ -418,6 +419,37 @@ Hello world`;
       const argsWithoutProxy = ['--skip-download', 'https://example.com'];
       appendYtDlpEnvArgs(argsWithoutProxy, {});
       expect(argsWithoutProxy).toEqual(['--skip-download', 'https://example.com']);
+    });
+  });
+
+  describe('fetchVideoChapters', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should use preFetchedData when provided and not call fetchYtDlpJson', async () => {
+      const url = 'https://www.youtube.com/watch?v=video123';
+      const preFetchedData = {
+        id: 'video123',
+        chapters: [
+          { start_time: 0, end_time: 60, title: 'Intro' },
+          { start_time: 60, end_time: 120, title: 'Main' },
+        ],
+      };
+
+      const result = await fetchVideoChapters(url, undefined, preFetchedData);
+
+      expect(execFileMock).not.toHaveBeenCalled();
+      expect(result).toEqual([
+        { startTime: 0, endTime: 60, title: 'Intro' },
+        { startTime: 60, endTime: 120, title: 'Main' },
+      ]);
+    });
+
+    it('should return null when preFetchedData is null', async () => {
+      const result = await fetchVideoChapters('https://www.youtube.com/watch?v=x', undefined, null);
+      expect(execFileMock).not.toHaveBeenCalled();
+      expect(result).toBeNull();
     });
   });
 

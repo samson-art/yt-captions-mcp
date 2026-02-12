@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-02-13
+
+### Changed
+
+- **Chapters: single yt-dlp fetch.** `validateAndFetchVideoChapters` (REST `/video-info/chapters`) and MCP tool `get_video_chapters` now perform one yt-dlp network call instead of two. `fetchVideoChapters` in `youtube.ts` accepts an optional third argument `preFetchedData`; when provided, it reuses that data and skips the internal `fetchYtDlpJson` call. Validation and MCP handlers fetch once and pass the result into `fetchVideoChapters`, so video ID and chapters are derived from the same response.
+
+### Added
+
+- **Export:** `YtDlpVideoInfo` type is now exported from `youtube.ts` for callers that pass pre-fetched data into `fetchVideoChapters`.
+- **Unit tests:** `youtube.test.ts` — `fetchVideoChapters` with `preFetchedData` (no execFile call, correct chapter mapping; null handling). `validation.test.ts` — `fetchYtDlpJson` called once and data passed to `fetchVideoChapters`; Vimeo test expects three-argument call. `mcp-core.test.ts` — chapters tool expectations updated for fetch order and three-argument `fetchVideoChapters` call.
+
 ## [0.4.3] - 2026-02-13
 
 ### Added

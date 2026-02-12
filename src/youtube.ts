@@ -24,7 +24,7 @@ type YtDlpChapter = {
   title?: string;
 };
 
-type YtDlpVideoInfo = {
+export type YtDlpVideoInfo = {
   id?: string;
   title?: string;
   uploader?: string;
@@ -250,12 +250,14 @@ export async function fetchVideoInfo(
 
 /**
  * Fetches chapter markers (start/end time, title) for a video via yt-dlp.
+ * When preFetchedData is provided, skips the network call and uses it instead.
  */
 export async function fetchVideoChapters(
   url: string,
-  logger?: FastifyBaseLogger
+  logger?: FastifyBaseLogger,
+  preFetchedData?: YtDlpVideoInfo | null
 ): Promise<VideoChapter[] | null> {
-  const data = await fetchYtDlpJson(url, logger);
+  const data = preFetchedData !== undefined ? preFetchedData : await fetchYtDlpJson(url, logger);
   if (!data || !Array.isArray(data.chapters) || data.chapters.length === 0) {
     return data && Array.isArray(data.chapters) ? [] : null;
   }

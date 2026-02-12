@@ -430,7 +430,7 @@ export async function validateAndFetchVideoChapters(
   const { url } = validated;
   const data = await fetchYtDlpJson(url, logger);
   const videoId = data?.id ?? extractVideoId(url) ?? 'unknown';
-  const chapters = await fetchVideoChapters(url, logger);
+  const chapters = await fetchVideoChapters(url, logger, data);
   if (chapters === null) {
     reply.code(404).send({
       error: 'Video not found',

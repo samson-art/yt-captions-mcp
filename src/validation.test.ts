@@ -631,7 +631,30 @@ describe('validation', () => {
 
       expect(result).toEqual({ videoId: '123', chapters: mockChapters });
       expect(reply.statusCode).toBe(200);
-      expect(youtube.fetchVideoChapters).toHaveBeenCalledWith(vimeoUrl, undefined);
+      expect(youtube.fetchVideoChapters).toHaveBeenCalledWith(vimeoUrl, undefined, {
+        id: '123',
+      });
+    });
+
+    it('should call fetchYtDlpJson once and pass data to fetchVideoChapters', async () => {
+      const reply = createReplyMock();
+      const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      const mockChapters = [
+        { startTime: 0, endTime: 60, title: 'Intro' },
+        { startTime: 60, endTime: 120, title: 'Main' },
+      ];
+      const mockData = { id: 'dQw4w9WgXcQ', chapters: mockChapters };
+      const fetchJsonSpy = jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue(mockData as any);
+      const fetchChaptersSpy = jest
+        .spyOn(youtube, 'fetchVideoChapters')
+        .mockResolvedValue(mockChapters);
+
+      const result = await validateAndFetchVideoChapters({ url } as any, reply);
+
+      expect(result).toEqual({ videoId: 'dQw4w9WgXcQ', chapters: mockChapters });
+      expect(fetchJsonSpy).toHaveBeenCalledTimes(1);
+      expect(fetchChaptersSpy).toHaveBeenCalledTimes(1);
+      expect(fetchChaptersSpy).toHaveBeenCalledWith(url, undefined, mockData);
     });
   });
 });
