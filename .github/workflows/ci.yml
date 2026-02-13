@@ -41,5 +41,8 @@ jobs:
         run: npm ci
 
       - name: Build
+        run: npm run build
+
+      - name: Smoke
         run: make smoke
 
