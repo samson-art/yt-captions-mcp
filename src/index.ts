@@ -22,6 +22,7 @@ import {
 import { version as API_VERSION } from './version.js';
 import { checkYtDlpAtStartup } from './yt-dlp-check.js';
 import { close as closeCache, ping as cachePing } from './cache.js';
+import * as Sentry from '@sentry/node';
 import { recordRequest, renderPrometheus, getFailedSubtitlesUrls } from './metrics.js';
 
 // Response schemas for OpenAPI/Swagger
@@ -81,7 +82,7 @@ const fastify = Fastify({
   logger: true,
 }).withTypeProvider<TypeBoxTypeProvider>();
 
-fastify.setErrorHandler((error, _request, reply) => {
+fastify.setErrorHandler((error, request, reply) => {
   const statusCode = error instanceof HttpError ? error.statusCode : 500;
   const message = error instanceof Error ? error.message : 'Unknown error occurred';
   const errorLabel = error instanceof HttpError ? error.errorLabel : 'Internal server error';
@@ -90,6 +91,17 @@ fastify.setErrorHandler((error, _request, reply) => {
   } else {
     fastify.log.warn({ err: error }, message);
   }
+  Sentry.withScope((scope) => {
+    scope.setContext('request', {
+      method: request.method,
+      url: request.url,
+      statusCode,
+    });
+    if (statusCode >= 400 && statusCode < 500) {
+      scope.setLevel('warning');
+    }
+    Sentry.captureException(error);
+  });
   return reply.code(statusCode).send({
     error: errorLabel,
     message,
@@ -122,6 +134,11 @@ fastify.get('/health/ready', async (_request, reply) => {
     return reply.code(503).send({ status: 'not ready', redis: 'unreachable' });
   }
   return reply.code(200).send({ status: 'ready' });
+});
+
+// Throw on purpose so Sentry receives a 5xx event (for verifying Sentry integration)
+fastify.get('/health/sentry-test', () => {
+  throw new Error('Sentry test: this event is expected when verifying error reporting');
 });
 
 fastify.get('/metrics', async (_request, reply) => {
@@ -347,6 +364,7 @@ const start = async () => {
     fastify.log.info(`Server listening on port ${port}`);
   } catch (err) {
     fastify.log.error(err);
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)));
     process.exit(1);
   }
 };
@@ -376,6 +394,7 @@ const shutdown = async (signal: string) => {
     clearTimeout(forceShutdownTimer);
     const error = err instanceof Error ? err : new Error(String(err));
     fastify.log.error(error, 'Error during shutdown');
+    Sentry.captureException(error);
     process.exit(1);
   }
 };
@@ -393,10 +412,12 @@ process.on('SIGINT', () => {
 process.on('unhandledRejection', (reason) => {
   const error = reason instanceof Error ? reason : new Error(String(reason));
   fastify.log.error(error, 'Unhandled Rejection');
+  Sentry.captureException(error);
 });
 
 process.on('uncaughtException', (error) => {
   fastify.log.error(error, 'Uncaught Exception');
+  Sentry.captureException(error);
   void shutdown('uncaughtException');
 });
 

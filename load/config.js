@@ -3,7 +3,7 @@
  * Usage: import from other scripts or use as k6 shared module.
  */
 
-export const BASE_URL = _env.BASE_URL || 'http://127.0.0.1:3000';
+export const BASE_URL = 'http://100.105.157.24:3000';
 
 /**
  * Video pool entry: id, duration (seconds), optional subtitle language codes.

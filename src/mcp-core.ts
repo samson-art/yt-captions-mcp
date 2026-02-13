@@ -43,7 +43,7 @@ const baseInputSchema = z.object({
 });
 
 const subtitleInputSchema = baseInputSchema.extend({
-  type: z.enum(['official', 'auto']).optional().default('auto'),
+  type: z.enum(['official', 'auto']).optional(),
   lang: z.string().optional(),
   response_limit: z.number().int().min(MIN_RESPONSE_LIMIT).max(MAX_RESPONSE_LIMIT).optional(),
   next_cursor: z.string().optional(),
@@ -176,7 +176,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
       } catch (err) {
         if (err instanceof NotFoundError) {
           recordMcpToolError(TOOL_GET_TRANSCRIPT);
-          return toolError(`Subtitles not found (${resolved.type}, ${resolved.lang}).`);
+          return toolError(err.message);
         }
         if (err instanceof ValidationError) {
           recordMcpToolError(TOOL_GET_TRANSCRIPT);
@@ -247,7 +247,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
       } catch (err) {
         if (err instanceof NotFoundError) {
           recordMcpToolError(TOOL_GET_RAW_SUBTITLES);
-          return toolError(`Subtitles not found (${resolved.type}, ${resolved.lang}).`);
+          return toolError(err.message);
         }
         if (err instanceof ValidationError) {
           recordMcpToolError(TOOL_GET_RAW_SUBTITLES);
@@ -483,25 +483,31 @@ function resolveSubtitleArgs(args: z.infer<typeof subtitleInputSchema>) {
     throw new Error('Invalid video URL. Use a URL from a supported platform or YouTube video ID.');
   }
 
-  let lang: string;
-  let whisperLang: string;
-  if (args.lang === undefined || args.lang === null) {
-    lang = 'en';
-    whisperLang = '';
+  const isAutoDiscover = args.type === undefined && args.lang === undefined;
+
+  let type: 'official' | 'auto' | undefined;
+  let lang: string | undefined;
+
+  if (isAutoDiscover) {
+    type = undefined;
+    lang = undefined;
   } else {
-    const sanitized = sanitizeLang(args.lang);
-    if (!sanitized) {
-      throw new Error('Invalid language code.');
+    type = args.type ?? 'auto';
+    if (args.lang === undefined || args.lang === null) {
+      lang = 'en';
+    } else {
+      const sanitized = sanitizeLang(args.lang);
+      if (!sanitized) {
+        throw new Error('Invalid language code.');
+      }
+      lang = sanitized;
     }
-    lang = sanitized;
-    whisperLang = sanitized;
   }
 
   const responseLimit = args.response_limit ?? DEFAULT_RESPONSE_LIMIT;
   const nextCursor = args.next_cursor;
-  const type = args.type ?? 'auto';
 
-  return { url, lang, whisperLang, responseLimit, nextCursor, type };
+  return { url, type, lang, responseLimit, nextCursor };
 }
 
 function resolveVideoUrl(input: string): string | null {

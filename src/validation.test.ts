@@ -5,6 +5,7 @@ import {
   normalizeVideoInput,
   sanitizeVideoId,
   sanitizeLang,
+  shouldAutoDiscoverSubtitles,
   validateAndDownloadSubtitles,
   validateAndFetchAvailableSubtitles,
   validateAndFetchVideoInfo,
@@ -120,6 +121,8 @@ describe('validation', () => {
         'https://vk.com/video123',
         'https://vk.ru/video123',
         'https://www.vk.com/video123',
+        'https://vkvideo.ru/playlist/-220754053_5/video-220754053_456243238',
+        'https://www.vkvideo.ru/playlist/-220754053_5/video-220754053_456243238',
         // Dailymotion
         'https://dailymotion.com/video/abc',
         'https://www.dailymotion.com/video/abc',
@@ -162,6 +165,10 @@ describe('validation', () => {
         ['https://fb.watch/abc', 'https://fb.watch/abc'],
         ['https://bilibili.com/video/av1', 'https://bilibili.com/video/av1'],
         ['https://vk.com/video123', 'https://vk.com/video123'],
+        [
+          'https://vkvideo.ru/playlist/-220754053_5/video-220754053_456243238',
+          'https://vkvideo.ru/playlist/-220754053_5/video-220754053_456243238',
+        ],
         ['https://www.dailymotion.com/video/abc', 'https://www.dailymotion.com/video/abc'],
       ];
       platformUrls.forEach(([input, expected]) => {
@@ -230,6 +237,24 @@ describe('validation', () => {
     it('should allow language codes with max allowed length', () => {
       const lang = 'a'.repeat(10);
       expect(sanitizeLang(lang)).toBe(lang);
+    });
+  });
+
+  describe('shouldAutoDiscoverSubtitles', () => {
+    it('should return true when both type and lang are undefined', () => {
+      expect(shouldAutoDiscoverSubtitles({ url: 'https://youtube.com/watch?v=x' })).toBe(true);
+    });
+
+    it('should return false when type is provided', () => {
+      expect(
+        shouldAutoDiscoverSubtitles({ url: 'https://youtube.com/watch?v=x', type: 'auto' })
+      ).toBe(false);
+    });
+
+    it('should return false when lang is provided', () => {
+      expect(
+        shouldAutoDiscoverSubtitles({ url: 'https://youtube.com/watch?v=x', lang: 'en' })
+      ).toBe(false);
     });
   });
 
@@ -402,6 +427,151 @@ describe('validation', () => {
         source: 'youtube',
       });
       expect(youtube.downloadSubtitles).toHaveBeenCalledWith(vimeoUrl, 'auto', 'en', undefined);
+    });
+
+    describe('auto-discover (lang and type omitted)', () => {
+      const youtubeUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+      it('should use official subtitles when available', async () => {
+        jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue({
+          id: 'dQw4w9WgXcQ',
+          subtitles: { en: [], ru: [] },
+          automatic_captions: {},
+        });
+        const downloadSpy = jest
+          .spyOn(youtube, 'downloadSubtitles')
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce('official ru content');
+
+        const result = await validateAndDownloadSubtitles({ url: youtubeUrl } as any);
+
+        expect(result).toEqual({
+          videoId: 'dQw4w9WgXcQ',
+          type: 'official',
+          lang: 'ru',
+          subtitlesContent: 'official ru content',
+          source: 'youtube',
+        });
+        expect(downloadSpy).toHaveBeenNthCalledWith(1, youtubeUrl, 'official', 'en', undefined);
+        expect(downloadSpy).toHaveBeenNthCalledWith(2, youtubeUrl, 'official', 'ru', undefined);
+      });
+
+      it('should prefer -orig auto subtitles for YouTube when available', async () => {
+        jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue({
+          id: 'dQw4w9WgXcQ',
+          subtitles: {},
+          automatic_captions: { en: [], 'en-orig': [], ru: [] },
+        });
+        const downloadSpy = jest
+          .spyOn(youtube, 'downloadSubtitles')
+          .mockResolvedValueOnce('en-orig content');
+
+        const result = await validateAndDownloadSubtitles({ url: youtubeUrl } as any);
+
+        expect(result).toEqual({
+          videoId: 'dQw4w9WgXcQ',
+          type: 'auto',
+          lang: 'en-orig',
+          subtitlesContent: 'en-orig content',
+          source: 'youtube',
+        });
+        expect(downloadSpy).toHaveBeenCalledWith(youtubeUrl, 'auto', 'en-orig', undefined);
+      });
+
+      it('should iterate auto list when no -orig for YouTube', async () => {
+        jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue({
+          id: 'dQw4w9WgXcQ',
+          subtitles: {},
+          automatic_captions: { en: [], ru: [] },
+        });
+        const downloadSpy = jest
+          .spyOn(youtube, 'downloadSubtitles')
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce('ru auto content');
+
+        const result = await validateAndDownloadSubtitles({ url: youtubeUrl } as any);
+
+        expect(result).toEqual({
+          videoId: 'dQw4w9WgXcQ',
+          type: 'auto',
+          lang: 'ru',
+          subtitlesContent: 'ru auto content',
+          source: 'youtube',
+        });
+        expect(downloadSpy).toHaveBeenNthCalledWith(1, youtubeUrl, 'auto', 'en', undefined);
+        expect(downloadSpy).toHaveBeenNthCalledWith(2, youtubeUrl, 'auto', 'ru', undefined);
+      });
+
+      it('should fallback to Whisper when no subtitles found', async () => {
+        jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue({
+          id: 'dQw4w9WgXcQ',
+          subtitles: {},
+          automatic_captions: {},
+        });
+        jest.spyOn(youtube, 'downloadSubtitles').mockResolvedValue(null);
+        (whisper.getWhisperConfig as jest.Mock).mockReturnValue({ mode: 'local' });
+        (whisper.transcribeWithWhisper as jest.Mock).mockResolvedValue(
+          '1\n00:00:00,000 --> 00:00:01,000\nWhisper transcript'
+        );
+
+        const result = await validateAndDownloadSubtitles({ url: youtubeUrl } as any);
+
+        expect(result).toEqual({
+          videoId: 'dQw4w9WgXcQ',
+          type: 'auto',
+          lang: '',
+          subtitlesContent: '1\n00:00:00,000 --> 00:00:01,000\nWhisper transcript',
+          source: 'whisper',
+        });
+        expect(whisper.transcribeWithWhisper).toHaveBeenCalledWith(
+          youtubeUrl,
+          '',
+          'srt',
+          undefined
+        );
+      });
+
+      it('should throw NotFoundError when all attempts and Whisper fail', async () => {
+        jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue({
+          id: 'dQw4w9WgXcQ',
+          subtitles: {},
+          automatic_captions: {},
+        });
+        jest.spyOn(youtube, 'downloadSubtitles').mockResolvedValue(null);
+        (whisper.getWhisperConfig as jest.Mock).mockReturnValue({ mode: 'local' });
+        (whisper.transcribeWithWhisper as jest.Mock).mockResolvedValue(null);
+
+        await expect(validateAndDownloadSubtitles({ url: youtubeUrl } as any)).rejects.toThrow(
+          NotFoundError
+        );
+        await expect(
+          validateAndDownloadSubtitles({ url: youtubeUrl } as any)
+        ).rejects.toMatchObject({
+          errorLabel: 'Subtitles not found',
+          message: expect.stringContaining('No subtitles available'),
+        });
+      });
+
+      it('should maintain backward compatibility when type and lang are explicit', async () => {
+        jest.spyOn(youtube, 'downloadSubtitles').mockResolvedValue('explicit content');
+        jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue({ id: 'dQw4w9WgXcQ' });
+
+        const result = await validateAndDownloadSubtitles({
+          url: youtubeUrl,
+          type: 'auto',
+          lang: 'en',
+        } as any);
+
+        expect(result).toEqual({
+          videoId: 'dQw4w9WgXcQ',
+          type: 'auto',
+          lang: 'en',
+          subtitlesContent: 'explicit content',
+          source: 'youtube',
+        });
+        expect(youtube.downloadSubtitles).toHaveBeenCalledTimes(1);
+        expect(youtube.downloadSubtitles).toHaveBeenCalledWith(youtubeUrl, 'auto', 'en', undefined);
+      });
     });
   });
 

@@ -2,6 +2,8 @@
 
 Transcriptor MCP exposes Prometheus metrics on both the REST API and MCP HTTP server. You can scrape them with Prometheus and visualize in Grafana.
 
+For error monitoring with stack traces and grouping, see [Sentry](sentry.md) (optional, [sentry.io](https://sentry.io) Cloud).
+
 ## Quick start (Docker Compose)
 
 Add Prometheus and Grafana to your deployment:

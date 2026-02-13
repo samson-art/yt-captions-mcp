@@ -19,6 +19,7 @@ services:
       YT_DLP_JS_RUNTIMES: "node"
       COOKIES_FILE_PATH: "/cookies.txt"
       # Optional: LOG_LEVEL, YT_DLP_SKIP_VERSION_CHECK, YT_DLP_REQUIRED, CACHE_* (see .env.example and docs/configuration.md)
+      # Optional: SENTRY_DSN, SENTRY_ENVIRONMENT, SENTRY_RELEASE (see docs/sentry.md)
       # Whisper fallback (local container)
       WHISPER_MODE: "local"
       WHISPER_BASE_URL: "http://whisper:9000"
@@ -45,6 +46,7 @@ services:
       YT_DLP_JS_RUNTIMES: "node"
       COOKIES_FILE_PATH: "/cookies.txt"
       # Optional: MCP_AUTH_TOKEN, MCP_ALLOWED_HOSTS, MCP_ALLOWED_ORIGINS, LOG_LEVEL, CACHE_* (see .env.example and docs/configuration.md)
+      # Optional: SENTRY_DSN, SENTRY_ENVIRONMENT, SENTRY_RELEASE (see docs/sentry.md)
       # Whisper fallback (local container)
       WHISPER_MODE: "local"
       WHISPER_BASE_URL: "http://whisper:9000"

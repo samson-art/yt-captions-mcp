@@ -109,13 +109,13 @@ describe('mcp-core tools', () => {
       normalizeVideoInputMock.mockReturnValue(testUrl);
       sanitizeLangMock.mockReturnValue('en');
       validateAndDownloadSubtitlesMock.mockRejectedValue(
-        new NotFoundError('Not found', 'Subtitles not found')
+        new NotFoundError('No auto subtitles available for language "en"', 'Subtitles not found')
       );
 
       const result = await handler({ url: testUrl, type: 'auto', lang: 'en' }, {});
 
       expect(result).toMatchObject({ isError: true });
-      expect(result.content[0].text).toContain('Subtitles not found');
+      expect(result.content[0].text).toContain('No auto subtitles available');
     });
 
     it('should return error when parsing subtitles fails', async () => {

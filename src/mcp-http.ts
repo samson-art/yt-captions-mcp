@@ -15,6 +15,7 @@ import {
 } from './metrics.js';
 import { ensureAuth, getHeaderValue } from './mcp-auth.js';
 import { createMcpServer } from './mcp-core.js';
+import * as Sentry from '@sentry/node';
 import { checkYtDlpAtStartup } from './yt-dlp-check.js';
 
 setMetricsService('mcp');
@@ -172,6 +173,7 @@ app.get('/sse', async (request, reply) => {
   };
   transport.onerror = (error) => {
     app.log.error({ error }, 'SSE transport error');
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
   };
 
   await server.connect(transport);
@@ -235,6 +237,7 @@ async function start() {
     cleanupInterval.unref();
   } catch (error) {
     app.log.error(error);
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
     process.exit(1);
   }
 }
@@ -261,6 +264,7 @@ const shutdown = async (signal: string) => {
     clearTimeout(forceShutdownTimer);
     const error = err instanceof Error ? err : new Error(String(err));
     app.log.error(error, 'Error during shutdown');
+    Sentry.captureException(error);
     process.exit(1);
   }
 };
@@ -276,10 +280,12 @@ process.on('SIGINT', () => {
 process.on('unhandledRejection', (reason) => {
   const error = reason instanceof Error ? reason : new Error(String(reason));
   app.log.error(error, 'Unhandled Rejection');
+  Sentry.captureException(error);
 });
 
 process.on('uncaughtException', (error) => {
   app.log.error(error, 'Uncaught Exception');
+  Sentry.captureException(error);
   void shutdown('uncaughtException');
 });
 

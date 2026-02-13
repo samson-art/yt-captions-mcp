@@ -40,11 +40,14 @@ export const ALLOWED_VIDEO_DOMAINS = [
   'vk.com',
   'vk.ru',
   'www.vk.com',
+  'vkvideo.ru',
+  'www.vkvideo.ru',
   'dailymotion.com',
   'www.dailymotion.com',
 ] as const;
 
-// TypeBox schema for subtitle request
+// TypeBox schema for subtitle request.
+// When both type and lang are omitted, auto-discovery is used (official → auto with -orig for YouTube → auto → Whisper).
 export const GetSubtitlesRequestSchema = Type.Object({
   url: Type.String({
     minLength: 1,
@@ -53,8 +56,8 @@ export const GetSubtitlesRequestSchema = Type.Object({
   }),
   type: Type.Optional(
     Type.Union([Type.Literal('official'), Type.Literal('auto')], {
-      default: 'auto',
-      description: 'Type of subtitles: official or auto-generated',
+      description:
+        'Type of subtitles: official or auto-generated. Omit with lang for auto-discovery.',
     })
   ),
   lang: Type.Optional(
@@ -62,13 +65,17 @@ export const GetSubtitlesRequestSchema = Type.Object({
       pattern: '^[a-zA-Z0-9-]+$',
       minLength: 1,
       maxLength: 10,
-      default: 'en',
-      description: 'Language code (e.g., en, ru, en-US)',
+      description: 'Language code (e.g., en, ru, en-US). Omit with type for auto-discovery.',
     })
   ),
 });
 
 export type GetSubtitlesRequest = Static<typeof GetSubtitlesRequestSchema>;
+
+/** True when both type and lang are omitted — triggers auto-discovery flow. */
+export function shouldAutoDiscoverSubtitles(request: GetSubtitlesRequest): boolean {
+  return request.type === undefined && request.lang === undefined;
+}
 
 // Schema for request to get available subtitles
 export const GetAvailableSubtitlesRequestSchema = Type.Object({
@@ -276,8 +283,82 @@ export function validateYouTubeRequest(url: string): { videoId: string } {
   return { videoId };
 }
 
+/** Order auto languages for YouTube: -orig first, then rest. */
+function orderAutoForYouTube(auto: string[]): string[] {
+  const withOrig = auto.filter((l) => l.endsWith('-orig'));
+  const withoutOrig = auto.filter((l) => !l.endsWith('-orig'));
+  return [...withOrig, ...withoutOrig];
+}
+
+/**
+ * Auto-discovery: try official → auto (-orig first for YouTube) → all auto → Whisper.
+ * @returns subtitle result or null if all attempts failed
+ */
+async function downloadWithAutoDiscover(
+  url: string,
+  logger?: FastifyBaseLogger
+): Promise<{
+  videoId: string;
+  type: 'official' | 'auto';
+  lang: string;
+  subtitlesContent: string;
+  source: 'youtube' | 'whisper';
+} | null> {
+  const available = await validateAndFetchAvailableSubtitles({ url }, logger);
+  const { videoId, official, auto } = available;
+  const isYouTube = extractYouTubeVideoId(url) !== null;
+
+  // 1. Try official subtitles
+  for (const lang of official) {
+    const content = await downloadSubtitles(url, 'official', lang, logger);
+    if (content && content.trim().length > 0) {
+      return {
+        videoId,
+        type: 'official',
+        lang,
+        subtitlesContent: content,
+        source: 'youtube',
+      };
+    }
+  }
+
+  // 2. Try auto subtitles (for YouTube: -orig first)
+  const orderedAuto = isYouTube ? orderAutoForYouTube(auto) : auto;
+  for (const lang of orderedAuto) {
+    const content = await downloadSubtitles(url, 'auto', lang, logger);
+    if (content && content.trim().length > 0) {
+      return {
+        videoId,
+        type: 'auto',
+        lang,
+        subtitlesContent: content,
+        source: 'youtube',
+      };
+    }
+  }
+
+  // 3. Whisper fallback
+  const whisperConfig = getWhisperConfig();
+  if (whisperConfig.mode !== 'off') {
+    logger?.info('Trying Whisper fallback for auto-discovery');
+    const content = await transcribeWithWhisper(url, '', 'srt', logger);
+    if (content && content.trim().length > 0) {
+      return {
+        videoId,
+        type: 'auto',
+        lang: '',
+        subtitlesContent: content,
+        source: 'whisper',
+      };
+    }
+  }
+
+  return null;
+}
+
 /**
  * Validates request and downloads subtitles (supported platforms or Whisper fallback).
+ * When type and lang are both omitted, uses auto-discovery: official → auto (-orig for YouTube) → Whisper.
  * @param logger - Fastify logger instance for structured logging
  * @returns object with subtitle data
  * @throws ValidationError on invalid input, NotFoundError when subtitles are not available
@@ -294,7 +375,40 @@ export async function validateAndDownloadSubtitles(
 }> {
   const validated = validateVideoRequest(request.url);
   const { url } = validated;
-  const { type = 'auto', lang = 'en' } = request;
+
+  if (shouldAutoDiscoverSubtitles(request)) {
+    const cacheConfig = getCacheConfig();
+    const cacheKey = `sub:${url}:auto-discovery`;
+    const cached = await get(cacheKey);
+    if (cached !== undefined) {
+      recordCacheHit();
+      return JSON.parse(cached) as {
+        videoId: string;
+        type: 'official' | 'auto';
+        lang: string;
+        subtitlesContent: string;
+        source?: 'youtube' | 'whisper';
+      };
+    }
+    recordCacheMiss();
+
+    const result = await downloadWithAutoDiscover(url, logger);
+    if (!result) {
+      if (getWhisperConfig().mode !== 'off') {
+        recordSubtitlesFailure(url);
+      }
+      throw new NotFoundError(
+        'No subtitles available (tried official, auto, and Whisper fallback)',
+        'Subtitles not found'
+      );
+    }
+
+    await set(cacheKey, JSON.stringify(result), cacheConfig.ttlSubtitlesSeconds);
+    return result;
+  }
+
+  const type = request.type ?? 'auto';
+  const lang = request.lang ?? 'en';
 
   const sanitizedLang = sanitizeLang(lang);
   if (!sanitizedLang) {
