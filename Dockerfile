@@ -27,6 +27,9 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+# Ensure Node/npm are on PATH (avoid 127 when building api/mcp stages)
+ENV PATH="/usr/local/bin:${PATH}"
+
 # Deno (js runtime для yt-dlp)
 ENV DENO_INSTALL=/usr/local
 RUN curl -fsSL https://deno.land/x/install/install.sh | sh
@@ -45,7 +48,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --only=production && npm cache clean --force
+# Skip prepare (husky) — devDependencies not installed in production image
+RUN /usr/local/bin/npm ci --omit=dev --ignore-scripts && /usr/local/bin/npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 
@@ -62,7 +66,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --only=production && npm cache clean --force
+# Skip prepare (husky) — devDependencies not installed in production image
+RUN /usr/local/bin/npm ci --omit=dev --ignore-scripts && /usr/local/bin/npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 
