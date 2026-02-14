@@ -16,6 +16,7 @@ import {
 } from './metrics.js';
 import { ensureAuth, getHeaderValue } from './mcp-auth.js';
 import { createMcpServer } from './mcp-core.js';
+import { version } from './version.js';
 import * as Sentry from '@sentry/node';
 import { checkYtDlpAtStartup } from './yt-dlp-check.js';
 
@@ -43,6 +44,81 @@ const mcpHost = process.env.MCP_HOST || '0.0.0.0';
 const authToken = process.env.MCP_AUTH_TOKEN?.trim();
 const mcpPublicUrl = process.env.MCP_PUBLIC_URL?.trim();
 
+/** Static MCP server card for discovery (e.g. Smithery) at /.well-known/mcp/server-card.json */
+function getServerCard(): {
+  serverInfo: { name: string; version: string };
+  authentication: { required: boolean; schemes: string[] };
+  tools: Array<{ name: string; description: string; inputSchema: object }>;
+  resources: unknown[];
+  prompts: unknown[];
+} {
+  return {
+    serverInfo: { name: 'transcriptor-mcp', version },
+    authentication: {
+      required: !!authToken,
+      schemes: authToken ? ['bearer'] : [],
+    },
+    tools: [
+      {
+        name: 'get_transcript',
+        description:
+          'Fetch cleaned subtitles as plain text for a video (YouTube, Twitter/X, Instagram, TikTok, Twitch, Vimeo, Facebook, Bilibili, VK, Dailymotion). Input: URL only. Uses auto-discovery for type/language and returns the first chunk with default size.',
+        inputSchema: {
+          type: 'object',
+          properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
+          required: ['url'],
+        },
+      },
+      {
+        name: 'get_raw_subtitles',
+        description:
+          'Fetch raw SRT/VTT subtitles for a video (supported platforms). Optional lang: when omitted and Whisper fallback is used, language is auto-detected.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: 'Video URL or YouTube video ID' },
+            type: { type: 'string', enum: ['official', 'auto'] },
+            lang: { type: 'string' },
+            response_limit: { type: 'integer' },
+            next_cursor: { type: 'string' },
+          },
+          required: ['url'],
+        },
+      },
+      {
+        name: 'get_available_subtitles',
+        description: 'List available official and auto-generated subtitle languages.',
+        inputSchema: {
+          type: 'object',
+          properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
+          required: ['url'],
+        },
+      },
+      {
+        name: 'get_video_info',
+        description:
+          'Fetch extended metadata for a video (title, channel, duration, tags, thumbnails, etc.).',
+        inputSchema: {
+          type: 'object',
+          properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
+          required: ['url'],
+        },
+      },
+      {
+        name: 'get_video_chapters',
+        description: 'Fetch chapter markers (start/end time, title) for a video.',
+        inputSchema: {
+          type: 'object',
+          properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
+          required: ['url'],
+        },
+      },
+    ],
+    resources: [],
+    prompts: [],
+  };
+}
+
 const SESSION_TTL_MS = process.env.MCP_SESSION_TTL_MS
   ? Number.parseInt(process.env.MCP_SESSION_TTL_MS, 10)
   : 60 * 60 * 1000; // 1 hour
@@ -57,6 +133,11 @@ app.register(rateLimit, {
 
 app.get('/health', async (_request, reply) => {
   return reply.code(200).send({ status: 'ok' });
+});
+
+// MCP server discovery (e.g. Smithery) — no auth so scanners can read metadata
+app.get('/.well-known/mcp/server-card.json', async (_request, reply) => {
+  return reply.code(200).type('application/json').send(getServerCard());
 });
 
 app.get('/metrics', async (_request, reply) => {

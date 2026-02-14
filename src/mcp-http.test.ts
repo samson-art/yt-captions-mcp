@@ -80,6 +80,33 @@ describe('mcp-http', () => {
     });
   });
 
+  describe('GET /.well-known/mcp/server-card.json', () => {
+    it('returns 200 with server card (serverInfo, tools, no auth when token unset)', async () => {
+      await app.ready();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/.well-known/mcp/server-card.json',
+      });
+      expect(response.statusCode).toBe(200);
+      type ServerCard = {
+        serverInfo: { name: string; version: string };
+        authentication: { required: boolean; schemes: string[] };
+        tools: Array<{ name: string }>;
+      };
+      const body: ServerCard = response.json();
+      expect(body.serverInfo).toEqual({ name: 'transcriptor-mcp', version: expect.any(String) });
+      expect(body.authentication.required).toBe(false);
+      expect(body.authentication.schemes).toEqual([]);
+      expect(body.tools.map((t) => t.name)).toEqual([
+        'get_transcript',
+        'get_raw_subtitles',
+        'get_available_subtitles',
+        'get_video_info',
+        'get_video_chapters',
+      ]);
+    });
+  });
+
   describe('auth', () => {
     const originalEnv = process.env;
 
