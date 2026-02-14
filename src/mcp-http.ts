@@ -42,7 +42,55 @@ const sseSessions = new Map<string, SseSession>();
 const mcpPort = process.env.MCP_PORT ? Number.parseInt(process.env.MCP_PORT, 10) : 4200;
 const mcpHost = process.env.MCP_HOST || '0.0.0.0';
 const authToken = process.env.MCP_AUTH_TOKEN?.trim();
-const mcpPublicUrl = process.env.MCP_PUBLIC_URL?.trim();
+
+function getMcpPublicUrls(): string[] {
+  const urlsVar = process.env.MCP_PUBLIC_URLS?.trim();
+  if (urlsVar) {
+    const parsed = urlsVar
+      .split(',')
+      .map((u) => u.trim())
+      .filter(Boolean);
+    if (parsed.length > 0) return parsed;
+  }
+  const single = process.env.MCP_PUBLIC_URL?.trim();
+  if (single) return [single];
+  return [];
+}
+
+const mcpPublicUrls = getMcpPublicUrls();
+
+/**
+ * Resolves the public base URL for the SSE endpoint event based on the request's Host
+ * or X-Forwarded-Host. Picks the first allowed URL whose host matches, or the first
+ * URL as fallback when no match is found.
+ * @param request - Fastify request (GET /sse)
+ * @param allowedUrls - List of allowed base URLs (e.g. from MCP_PUBLIC_URLS)
+ * @returns The base URL to advertise in the endpoint event, or undefined if list is empty
+ */
+export function resolvePublicBaseUrlForRequest(
+  request: FastifyRequest,
+  allowedUrls: string[]
+): string | undefined {
+  if (allowedUrls.length === 0) return undefined;
+
+  const forwardedHost = getHeaderValue(request.headers['x-forwarded-host']);
+  const hostHeader = getHeaderValue(request.headers.host);
+  const effectiveHostRaw = forwardedHost || hostHeader;
+  if (!effectiveHostRaw) return allowedUrls[0];
+
+  const effectiveHost = effectiveHostRaw.split(':')[0].toLowerCase().trim();
+
+  for (const url of allowedUrls) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.toLowerCase() === effectiveHost) return url;
+    } catch {
+      // skip invalid URLs
+    }
+  }
+
+  return allowedUrls[0];
+}
 
 /** Static MCP server card for discovery (e.g. Smithery) at /.well-known/mcp/server-card.json */
 function getServerCard(): {
@@ -296,7 +344,8 @@ app.get('/sse', async (request, reply) => {
   reply.hijack();
   const server = createMcpServer({ logger: app.log });
   const sseOptions = getSseOptions();
-  const transport = createSseTransport('/message', reply.raw, sseOptions, mcpPublicUrl);
+  const resolvedUrl = resolvePublicBaseUrlForRequest(request, mcpPublicUrls);
+  const transport = createSseTransport('/message', reply.raw, sseOptions, resolvedUrl);
 
   transport.onclose = () => {
     sseSessions.delete(transport.sessionId);

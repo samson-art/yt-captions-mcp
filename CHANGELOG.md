@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`MCP_PUBLIC_URLS`:** Comma-separated list of public base URLs for multi-origin MCP deployments (e.g. Smithery + direct domain). The server selects the matching URL per request using `Host` or `X-Forwarded-Host`. When set, takes precedence over `MCP_PUBLIC_URL`. Backward compatible: single `MCP_PUBLIC_URL` still works.
+
 ## [0.5.4] - 2026-02-14
 
 ### Added
@@ -31,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **MCP SSE initialization 404 when used from another origin (e.g. Smithery):** The SDK sends a relative path in the SSE `endpoint` event (`/message?sessionId=...`). Clients that open the connection from a different origin (e.g. Smithery.ai auth/scan popup) resolved that path against their own origin and POSTed to the wrong host, resulting in "Initialization failed with status 404". The server now supports **`MCP_PUBLIC_URL`** (e.g. `https://transcriptor-mcp.comedy.cat`). When set, the SSE transport sends the full message URL in the `endpoint` event so the client POSTs to the correct server.
+- **MCP SSE initialization 404 when used from another origin (e.g. Smithery):** The SDK sends a relative path in the SSE `endpoint` event (`/message?sessionId=...`). Clients that open the connection from a different origin (e.g. Smithery.ai auth/scan popup) resolved that path against their own origin and POSTed to the wrong host, resulting in "Initialization failed with status 404". The server now supports **`MCP_PUBLIC_URL`**. When set, the SSE transport sends the full message URL in the `endpoint` event so the client POSTs to the correct server.
 
 ### Added
 

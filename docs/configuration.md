@@ -97,6 +97,11 @@ in their requests.
 - **`MCP_SESSION_TTL_MS`** – session TTL in milliseconds; sessions older than this are removed by cleanup (default: `3600000`, 1 hour)
 - **`MCP_SESSION_CLEANUP_INTERVAL_MS`** – interval in milliseconds for cleaning expired MCP sessions (default: `900000`, 15 minutes)
 
+**Public base URL for SSE endpoint:** When the MCP server is used from another origin (e.g. Smithery.ai auth popup), the SSE transport must advertise the full message URL in the `endpoint` event so clients POST to the correct server. Configure one of:
+
+- **`MCP_PUBLIC_URL`** – optional single public base URL. When set, the SSE transport sends the full message URL in the endpoint event.
+- **`MCP_PUBLIC_URLS`** – optional comma-separated list of public base URLs for multi-origin deployments. The server picks the matching URL from the request's `Host` or `X-Forwarded-Host` header. If both are set, `MCP_PUBLIC_URLS` takes precedence.
+
 The MCP HTTP server also supports **`SHUTDOWN_TIMEOUT`** for graceful shutdown (same as REST API).
 
 ## Whisper fallback (subtitles not available)

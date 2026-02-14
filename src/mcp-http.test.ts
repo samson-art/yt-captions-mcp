@@ -1,4 +1,10 @@
-import { app, cleanupExpiredSessions, streamableSessions, sseSessions } from './mcp-http.js';
+import {
+  app,
+  cleanupExpiredSessions,
+  resolvePublicBaseUrlForRequest,
+  streamableSessions,
+  sseSessions,
+} from './mcp-http.js';
 
 jest.mock('./yt-dlp-check.js', () => ({
   checkYtDlpAtStartup: jest.fn().mockResolvedValue(undefined),
@@ -194,6 +200,55 @@ describe('mcp-http', () => {
       // Full rate-limit behavior (429) is verified in e2e/Docker smoke tests.
       const response = await app.inject({ method: 'GET', url: '/health' });
       expect(response.statusCode).toBe(200);
+    });
+  });
+
+  describe('resolvePublicBaseUrlForRequest', () => {
+    const smitheryUrl = 'https://server.smithery.ai/samson-art/transcriptor-mcp';
+    const directUrl = 'https://transcriptor-mcp.comedy.cat';
+    const allowedUrls = [smitheryUrl, directUrl];
+
+    it('returns undefined when allowedUrls is empty', () => {
+      const req = { headers: { host: 'server.smithery.ai' } } as any;
+      expect(resolvePublicBaseUrlForRequest(req, [])).toBeUndefined();
+    });
+
+    it('matches by Host header', () => {
+      const req = { headers: { host: 'server.smithery.ai' } } as any;
+      expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(smitheryUrl);
+    });
+
+    it('matches by X-Forwarded-Host when present', () => {
+      const req = {
+        headers: { 'x-forwarded-host': 'transcriptor-mcp.comedy.cat', host: 'localhost:4200' },
+      } as any;
+      expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(directUrl);
+    });
+
+    it('strips port from Host for matching', () => {
+      const req = { headers: { host: 'transcriptor-mcp.comedy.cat:443' } } as any;
+      expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(directUrl);
+    });
+
+    it('returns first URL as fallback when no host match', () => {
+      const req = { headers: { host: 'unknown.example.com' } } as any;
+      expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(smitheryUrl);
+    });
+
+    it('returns first URL when no Host header', () => {
+      const req = { headers: {} } as any;
+      expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(smitheryUrl);
+    });
+
+    it('matches host case-insensitively', () => {
+      const req = { headers: { host: 'Server.SmithEry.AI' } } as any;
+      expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(smitheryUrl);
+    });
+
+    it('with single URL behaves like MCP_PUBLIC_URL', () => {
+      const single = [directUrl];
+      const req = { headers: { host: 'transcriptor-mcp.comedy.cat' } } as any;
+      expect(resolvePublicBaseUrlForRequest(req, single)).toBe(directUrl);
     });
   });
 });
