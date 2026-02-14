@@ -91,7 +91,10 @@ describe('mcp-http', () => {
       type ServerCard = {
         serverInfo: { name: string; version: string };
         authentication: { required: boolean; schemes: string[] };
-        tools: Array<{ name: string }>;
+        tools: Array<{
+          name: string;
+          annotations?: { readOnlyHint?: boolean; idempotentHint?: boolean };
+        }>;
       };
       const body: ServerCard = response.json();
       expect(body.serverInfo).toEqual({ name: 'transcriptor-mcp', version: expect.any(String) });
@@ -104,6 +107,13 @@ describe('mcp-http', () => {
         'get_video_info',
         'get_video_chapters',
       ]);
+      for (const tool of body.tools) {
+        expect(tool).toHaveProperty('annotations');
+        expect(tool.annotations).toEqual({
+          readOnlyHint: true,
+          idempotentHint: true,
+        });
+      }
     });
   });
 

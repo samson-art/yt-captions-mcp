@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **MCP `get_transcript`:** Input is now only `url`. Parameters `type`, `lang`, `response_limit`, and `next_cursor` have been removed. The tool uses auto-discovery for type/language and returns the first chunk with default size. For explicit type/lang and pagination use `get_raw_subtitles`.
+## [0.5.3] - 2026-02-14
 
 ### Added
 
+- **MCP server card:** `GET /.well-known/mcp/server-card.json` returns static server card for MCP discovery (server name, version, authentication requirements, list of tools with names, descriptions, input schemas, and annotations). No authentication required. Documented in `docs/quick-start.mcp.md`.
+- **MCP tool annotations:** All MCP tools now expose `annotations: { readOnlyHint: true, idempotentHint: true }` in the tool definition and in the server card. Enables clients (e.g. Smithery, Cursor) to discover read-only and idempotent tools for caching and UX.
 - **Smart subtitle auto-discovery:** When `type` and `lang` are both omitted for `POST /subtitles` (REST API) or `get_transcript`/`get_raw_subtitles` (MCP), the service now auto-discovers subtitles instead of defaulting to `auto`/`en`. Flow: (1) fetch available subtitles; (2) try each official language until success; (3) for YouTube auto captions, prefer `*-orig` (original-language tracks) first, then iterate remaining auto; (4) for non-YouTube, iterate auto list as-is; (5) if no subtitles found, fallback to Whisper; (6) return 404 only when all attempts and Whisper fail. Request schema: `type` and `lang` no longer have defaults when omitted, enabling detection of auto-discover vs explicit request. Cache key for auto-discover: `sub:{url}:auto-discovery`.
 - **Whisper request metric:** New Prometheus counter `whisper_requests_total` with label `mode` (`local` or `api`) records each Whisper transcription attempt. Exposed on both REST API and MCP HTTP `/metrics`. `recordWhisperRequest(mode)` in `src/metrics.ts`; called from `transcribeWithWhisper()` when transcription is actually attempted (not when skipped). Documented in `docs/monitoring.md` (metrics tables and PromQL examples). Unit tests in `whisper.test.ts` assert the metric is recorded for local and api mode and not recorded when Whisper returns early.
+
+### Changed
+
+- **MCP `get_transcript`:** Input is now only `url`. Parameters `type`, `lang`, `response_limit`, and `next_cursor` have been removed. The tool uses auto-discovery for type/language and returns the first chunk with default size. For explicit type/lang and pagination use `get_raw_subtitles`.
 
 ## [0.5.2] - 2026-02-14
 

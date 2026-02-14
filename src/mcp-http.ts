@@ -48,7 +48,12 @@ const mcpPublicUrl = process.env.MCP_PUBLIC_URL?.trim();
 function getServerCard(): {
   serverInfo: { name: string; version: string };
   authentication: { required: boolean; schemes: string[] };
-  tools: Array<{ name: string; description: string; inputSchema: object }>;
+  tools: Array<{
+    name: string;
+    description: string;
+    inputSchema: object;
+    annotations: { readOnlyHint: boolean; idempotentHint: boolean };
+  }>;
   resources: unknown[];
   prompts: unknown[];
 } {
@@ -68,6 +73,7 @@ function getServerCard(): {
           properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
           required: ['url'],
         },
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'get_raw_subtitles',
@@ -84,6 +90,7 @@ function getServerCard(): {
           },
           required: ['url'],
         },
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'get_available_subtitles',
@@ -93,6 +100,7 @@ function getServerCard(): {
           properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
           required: ['url'],
         },
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'get_video_info',
@@ -103,6 +111,7 @@ function getServerCard(): {
           properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
           required: ['url'],
         },
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
       {
         name: 'get_video_chapters',
@@ -112,6 +121,7 @@ function getServerCard(): {
           properties: { url: { type: 'string', description: 'Video URL or YouTube video ID' } },
           required: ['url'],
         },
+        annotations: { readOnlyHint: true, idempotentHint: true },
       },
     ],
     resources: [],

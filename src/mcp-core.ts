@@ -157,6 +157,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
         'Fetch cleaned subtitles as plain text for a video (YouTube, Twitter/X, Instagram, TikTok, Twitch, Vimeo, Facebook, Bilibili, VK, Dailymotion). Input: URL only. Uses auto-discovery for type/language and returns the first chunk with default size.',
       inputSchema: baseInputSchema,
       outputSchema: transcriptOutputSchema,
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async (args, _extra) => {
       let resolved: ReturnType<typeof resolveTranscriptArgs>;
@@ -230,6 +231,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
         'Fetch raw SRT/VTT subtitles for a video (supported platforms). Optional lang: when omitted and Whisper fallback is used, language is auto-detected.',
       inputSchema: subtitleInputSchema,
       outputSchema: rawSubtitlesOutputSchema,
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async (args, _extra) => {
       let resolved: ReturnType<typeof resolveSubtitleArgs>;
@@ -298,6 +300,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
       description: 'List available official and auto-generated subtitle languages.',
       inputSchema: baseInputSchema,
       outputSchema: availableSubtitlesOutputSchema,
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async (args, _extra) => {
       const url = resolveVideoUrl(args.url);
@@ -355,6 +358,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
         'Fetch extended metadata for a video (title, channel, duration, tags, thumbnails, etc.).',
       inputSchema: baseInputSchema,
       outputSchema: videoInfoOutputSchema,
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async (args, _extra) => {
       const url = resolveVideoUrl(args.url);
@@ -438,6 +442,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
       description: 'Fetch chapter markers (start/end time, title) for a video.',
       inputSchema: baseInputSchema,
       outputSchema: videoChaptersOutputSchema,
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async (args, _extra) => {
       const url = resolveVideoUrl(args.url);
