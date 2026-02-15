@@ -360,6 +360,7 @@ describe('validation', () => {
 
     it('should return subtitles from Whisper fallback when YouTube has none', async () => {
       jest.spyOn(youtube, 'downloadSubtitles').mockResolvedValue(null);
+      jest.spyOn(youtube, 'fetchYtDlpJson').mockResolvedValue({ id: 'dQw4w9WgXcQ' });
       (whisper.getWhisperConfig as jest.Mock).mockReturnValue({ mode: 'local' });
       (whisper.transcribeWithWhisper as jest.Mock).mockResolvedValue(
         '1\n00:00:00,000 --> 00:00:01,000\nWhisper transcript'

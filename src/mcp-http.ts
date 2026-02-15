@@ -60,10 +60,22 @@ function getMcpPublicUrls(): string[] {
 
 const mcpPublicUrls = getMcpPublicUrls();
 
+const SMITHERY_HOST = 'server.smithery.ai';
+
+function isSmitheryProxyRequest(request: FastifyRequest): boolean {
+  const cfWorker = getHeaderValue(request.headers['cf-worker']);
+  return cfWorker != null && cfWorker.toLowerCase().includes('smithery');
+}
+
+function getSmitheryPublicUrl(): string | undefined {
+  return process.env.MCP_SMITHERY_PUBLIC_URL?.trim();
+}
+
 /**
- * Resolves the public base URL for the SSE endpoint event based on the request's Host
- * or X-Forwarded-Host. Picks the first allowed URL whose host matches, or the first
- * URL as fallback when no match is found.
+ * Resolves the public base URL for the SSE endpoint event. When the request comes from
+ * Smithery proxy (cf-worker header contains "smithery"), uses MCP_SMITHERY_PUBLIC_URL
+ * or the first allowed URL with host server.smithery.ai. Otherwise uses Host or
+ * X-Forwarded-Host to pick the matching allowed URL.
  * @param request - Fastify request (GET /sse)
  * @param allowedUrls - List of allowed base URLs (e.g. from MCP_PUBLIC_URLS)
  * @returns The base URL to advertise in the endpoint event, or undefined if list is empty
@@ -73,6 +85,20 @@ export function resolvePublicBaseUrlForRequest(
   allowedUrls: string[]
 ): string | undefined {
   if (allowedUrls.length === 0) return undefined;
+
+  if (isSmitheryProxyRequest(request)) {
+    const smitheryUrl = getSmitheryPublicUrl();
+    if (smitheryUrl) return smitheryUrl;
+    for (const url of allowedUrls) {
+      try {
+        const u = new URL(url);
+        if (u.hostname.toLowerCase() === SMITHERY_HOST) return url;
+      } catch {
+        // skip invalid URLs
+      }
+    }
+    return allowedUrls[0];
+  }
 
   const forwardedHost = getHeaderValue(request.headers['x-forwarded-host']);
   const hostHeader = getHeaderValue(request.headers.host);

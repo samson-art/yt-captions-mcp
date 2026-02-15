@@ -250,5 +250,57 @@ describe('mcp-http', () => {
       const req = { headers: { host: 'transcriptor-mcp.comedy.cat' } } as any;
       expect(resolvePublicBaseUrlForRequest(req, single)).toBe(directUrl);
     });
+
+    it('uses MCP_SMITHERY_PUBLIC_URL when cf-worker indicates Smithery proxy', () => {
+      const envKey = 'MCP_SMITHERY_PUBLIC_URL';
+      const orig = process.env[envKey];
+      process.env[envKey] = smitheryUrl;
+      try {
+        const req = {
+          headers: {
+            'cf-worker': 'smithery.ai',
+            'x-forwarded-host': 'transcriptor-mcp.comedy.cat',
+          },
+        } as any;
+        expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(smitheryUrl);
+      } finally {
+        if (orig !== undefined) process.env[envKey] = orig;
+        else delete process.env[envKey];
+      }
+    });
+
+    it('uses Smithery URL from allowedUrls when cf-worker indicates Smithery and MCP_SMITHERY_PUBLIC_URL unset', () => {
+      const envKey = 'MCP_SMITHERY_PUBLIC_URL';
+      const orig = process.env[envKey];
+      delete process.env[envKey];
+      try {
+        const req = {
+          headers: { 'cf-worker': 'smithery.ai', host: 'transcriptor-mcp.comedy.cat' },
+        } as any;
+        expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(smitheryUrl);
+      } finally {
+        if (orig !== undefined) process.env[envKey] = orig;
+      }
+    });
+
+    it('falls back to allowedUrls[0] when cf-worker indicates Smithery but no Smithery URL in config', () => {
+      const envKey = 'MCP_SMITHERY_PUBLIC_URL';
+      const orig = process.env[envKey];
+      delete process.env[envKey];
+      try {
+        const single = [directUrl];
+        const req = { headers: { 'cf-worker': 'smithery.ai' } } as any;
+        expect(resolvePublicBaseUrlForRequest(req, single)).toBe(directUrl);
+      } finally {
+        if (orig !== undefined) process.env[envKey] = orig;
+      }
+    });
+
+    it('uses Host/X-Forwarded-Host when cf-worker is absent', () => {
+      const req = {
+        headers: { 'x-forwarded-host': 'transcriptor-mcp.comedy.cat', host: 'localhost:4200' },
+      } as any;
+      expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(directUrl);
+    });
   });
 });
