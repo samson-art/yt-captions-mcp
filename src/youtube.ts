@@ -541,6 +541,125 @@ export function appendYtDlpEnvArgs(
   }
 }
 
+export type SearchVideoResult = {
+  videoId: string;
+  title: string | null;
+  url: string | null;
+  duration: number | null;
+  uploader: string | null;
+  viewCount: number | null;
+  thumbnail: string | null;
+};
+
+type YtDlpSearchEntry = {
+  id?: string;
+  title?: string;
+  url?: string;
+  webpage_url?: string;
+  duration?: number;
+  uploader?: string;
+  view_count?: number;
+  thumbnail?: string;
+};
+
+type YtDlpSearchResponse = {
+  entries?: YtDlpSearchEntry[];
+};
+
+/**
+ * Searches for videos on YouTube using yt-dlp (ytsearch).
+ * @param query - Search query
+ * @param limit - Max number of results (1-50, default 10)
+ * @param logger - Fastify logger instance for structured logging
+ * @returns Array of search results or null on error
+ */
+export async function searchVideos(
+  query: string,
+  limit: number = 10,
+  logger?: FastifyBaseLogger
+): Promise<SearchVideoResult[] | null> {
+  const searchUrl = `ytsearch${Math.min(Math.max(limit, 1), 50)}:${query}`;
+  const { jsRuntimes, remoteComponents, cookiesFilePathFromEnv, proxyFromEnv } = getYtDlpEnv();
+
+  let cookiesPathToUse = cookiesFilePathFromEnv;
+  let cookiesCleanup: (() => Promise<void>) | undefined;
+  if (cookiesFilePathFromEnv) {
+    const resolved = await ensureWritableCookiesFile(cookiesFilePathFromEnv);
+    cookiesPathToUse = resolved.path;
+    cookiesCleanup = resolved.cleanup;
+  }
+
+  const args = ['--flat-playlist', '--dump-single-json', '--skip-download', searchUrl];
+  appendYtDlpEnvArgs(args, {
+    jsRuntimes,
+    remoteComponents,
+    cookiesFilePathFromEnv: cookiesPathToUse,
+    proxyFromEnv,
+  });
+
+  try {
+    await logCookiesFileStatus(logger, cookiesFilePathFromEnv);
+    const timeout = process.env.YT_DLP_TIMEOUT
+      ? Number.parseInt(process.env.YT_DLP_TIMEOUT, 10)
+      : 60000;
+    logger?.info({ query, limit }, 'Searching videos via yt-dlp');
+    const { stdout, stderr } = await execFileAsync('yt-dlp', args, {
+      maxBuffer: 10 * 1024 * 1024,
+      timeout,
+    });
+    if (stderr) {
+      logger?.debug({ stderr }, 'yt-dlp stderr');
+    }
+
+    const trimmed = stdout.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    let data: YtDlpSearchResponse;
+    try {
+      data = JSON.parse(trimmed) as YtDlpSearchResponse;
+    } catch (parseError) {
+      logger?.error(
+        {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+          stdoutPreview: trimmed.slice(0, 200),
+        },
+        'Error parsing yt-dlp search JSON output'
+      );
+      return null;
+    }
+
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    return entries
+      .filter((e): e is YtDlpSearchEntry => e != null)
+      .map(
+        (e): SearchVideoResult => ({
+          videoId: e.id ?? '',
+          title: e.title ?? null,
+          url: e.webpage_url ?? e.url ?? null,
+          duration: typeof e.duration === 'number' ? e.duration : null,
+          uploader: e.uploader ?? null,
+          viewCount: typeof e.view_count === 'number' ? e.view_count : null,
+          thumbnail: e.thumbnail ?? null,
+        })
+      );
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const execErr = isExecFileException(error) ? error : null;
+    logger?.error(
+      {
+        error: err.message,
+        ...(execErr && { stdout: execErr.stdout, stderr: execErr.stderr }),
+      },
+      'Error searching videos via yt-dlp'
+    );
+    return null;
+  } finally {
+    await cookiesCleanup?.();
+  }
+}
+
 // Exported for testing.
 export async function fetchYtDlpJson(
   url: string,

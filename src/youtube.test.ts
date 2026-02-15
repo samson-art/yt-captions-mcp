@@ -18,6 +18,7 @@ const {
   fetchVideoInfo,
   fetchVideoChapters,
   fetchYtDlpJson,
+  searchVideos,
   findSubtitleFile,
   getYtDlpEnv,
   appendYtDlpEnvArgs,
@@ -630,6 +631,125 @@ Hello world`;
       const info = await fetchVideoInfo('https://www.youtube.com/watch?v=video123');
 
       expect(info).toBeNull();
+    });
+  });
+
+  describe('searchVideos', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should return parsed search results from yt-dlp', async () => {
+      const searchJson = {
+        entries: [
+          {
+            id: 'vid1',
+            title: 'Video One',
+            webpage_url: 'https://www.youtube.com/watch?v=vid1',
+            duration: 120,
+            uploader: 'Channel One',
+            view_count: 1000,
+            thumbnail: 'https://i.ytimg.com/vi/vid1/default.jpg',
+          },
+        ],
+      };
+
+      execFileMock.mockImplementation(
+        (
+          file: string,
+          args: string[],
+          _options: unknown,
+          callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+        ) => {
+          expect(file).toBe('yt-dlp');
+          expect(args).toContain('--flat-playlist');
+          expect(args).toContain('--dump-single-json');
+          expect(args.some((a) => a.startsWith('ytsearch'))).toBe(true);
+          expect(args.some((a) => a.includes('test query'))).toBe(true);
+          callback(null, { stdout: JSON.stringify(searchJson), stderr: '' });
+        }
+      );
+
+      const result = await searchVideos('test query', 10);
+
+      expect(result).toEqual([
+        {
+          videoId: 'vid1',
+          title: 'Video One',
+          url: 'https://www.youtube.com/watch?v=vid1',
+          duration: 120,
+          uploader: 'Channel One',
+          viewCount: 1000,
+          thumbnail: 'https://i.ytimg.com/vi/vid1/default.jpg',
+        },
+      ]);
+    });
+
+    it('should return empty array when yt-dlp stdout is empty', async () => {
+      execFileMock.mockImplementation(
+        (
+          _file: string,
+          _args: string[],
+          _options: unknown,
+          callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+        ) => {
+          callback(null, { stdout: '   ', stderr: '' });
+        }
+      );
+
+      const result = await searchVideos('query', 5);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return null when yt-dlp throws an error', async () => {
+      execFileMock.mockImplementation(
+        (
+          _file: string,
+          _args: string[],
+          _options: unknown,
+          callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+        ) => {
+          const error = new Error('yt-dlp failed') as any;
+          error.stdout = '';
+          error.stderr = 'error';
+          callback(error, { stdout: '', stderr: 'error' });
+        }
+      );
+
+      const result = await searchVideos('query', 10);
+
+      expect(result).toBeNull();
+    });
+
+    it('should clamp limit to 1-50 range', async () => {
+      execFileMock.mockImplementation(
+        (
+          file: string,
+          args: string[],
+          _opts: unknown,
+          cb: (e: null, r: { stdout: string }) => void
+        ) => {
+          const ytsearchArg = args.find((a) => a.startsWith('ytsearch'));
+          expect(ytsearchArg).toBe('ytsearch50:query'); // 100 clamped to 50
+          cb(null, { stdout: JSON.stringify({ entries: [] }) });
+        }
+      );
+      await searchVideos('query', 100);
+
+      execFileMock.mockImplementation(
+        (
+          file: string,
+          args: string[],
+          _opts: unknown,
+          cb: (e: null, r: { stdout: string }) => void
+        ) => {
+          const ytsearchArg = args.find((a) => a.startsWith('ytsearch'));
+          expect(ytsearchArg).toBe('ytsearch1:query'); // 0 clamped to 1
+          cb(null, { stdout: JSON.stringify({ entries: [] }) });
+        }
+      );
+      await searchVideos('query', 0);
     });
   });
 });

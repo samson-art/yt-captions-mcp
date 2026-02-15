@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-02-15
+
 ### Added
 
+- **MCP tool `search_videos`:** Search videos on YouTube via yt-dlp (ytsearch). No required parameters; provide `query` and optional `limit` (default 10, max 50). Returns list of videos with metadata (id, title, url, duration, uploader, viewCount, thumbnail). New `searchVideos(query, limit, log)` in `src/youtube.ts`; tool registered in `mcp-core.ts` and exposed in server card.
 - **Sentry breadcrumbs from Pino logs:** When a 4xx or 5xx error is sent to Sentry, the event now includes a full trail of log calls (debug, info, warn, error) that led up to the error. REST API and MCP HTTP use a Pino logger that writes each log line to stdout and adds a Sentry breadcrumb; `maxBreadcrumbs` set to 100 in Sentry init. New module `src/logger-sentry-breadcrumbs.ts` (`createLoggerWithSentryBreadcrumbs()`); docs/sentry.md updated with a Breadcrumbs section.
 - **`MCP_PUBLIC_URLS`:** Comma-separated list of public base URLs for multi-origin MCP deployments (e.g. Smithery + direct domain). The server selects the matching URL per request using `Host` or `X-Forwarded-Host`. When set, takes precedence over `MCP_PUBLIC_URL`. Backward compatible: single `MCP_PUBLIC_URL` still works.
 - **POST /sse compatibility:** Some MCP clients (e.g. Cursor via Smithery) POST to `/sse` for streamable HTTP. The server now accepts POST on `/sse` and delegates to the streamable handler; canonical endpoint remains POST `/mcp`.

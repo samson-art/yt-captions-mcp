@@ -114,13 +114,17 @@ describe('mcp-http', () => {
         'get_available_subtitles',
         'get_video_info',
         'get_video_chapters',
+        'search_videos',
       ]);
       for (const tool of body.tools) {
         expect(tool).toHaveProperty('annotations');
-        expect(tool.annotations).toEqual({
-          readOnlyHint: true,
-          idempotentHint: true,
-        });
+        expect(tool.annotations?.readOnlyHint).toBe(true);
+        // search_videos has idempotentHint: false, others true
+        if (tool.name === 'search_videos') {
+          expect(tool.annotations?.idempotentHint).toBe(false);
+        } else {
+          expect(tool.annotations?.idempotentHint).toBe(true);
+        }
       }
       expect(body.prompts.length).toBeGreaterThanOrEqual(1);
       for (const prompt of body.prompts) {

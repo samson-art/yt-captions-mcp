@@ -6,7 +6,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod/v3';
 import type { FastifyBaseLogger } from 'fastify';
 import pino from 'pino';
-import { detectSubtitleFormat, parseSubtitles, type VideoChapter } from './youtube.js';
+import {
+  detectSubtitleFormat,
+  parseSubtitles,
+  searchVideos,
+  type VideoChapter,
+} from './youtube.js';
 import { NotFoundError, ValidationError } from './errors.js';
 import {
   normalizeVideoInput,
@@ -24,6 +29,7 @@ const TOOL_GET_RAW_SUBTITLES = 'get_raw_subtitles';
 const TOOL_GET_AVAILABLE_SUBTITLES = 'get_available_subtitles';
 const TOOL_GET_VIDEO_INFO = 'get_video_info';
 const TOOL_GET_VIDEO_CHAPTERS = 'get_video_chapters';
+const TOOL_SEARCH_VIDEOS = 'search_videos';
 
 function createDefaultLogger(): FastifyBaseLogger {
   return pino({ level: process.env.LOG_LEVEL || 'info' }) as unknown as FastifyBaseLogger;
@@ -123,6 +129,25 @@ const videoChaptersOutputSchema = z.object({
       startTime: z.number(),
       endTime: z.number(),
       title: z.string(),
+    })
+  ),
+});
+
+const searchInputSchema = z.object({
+  query: z.string().optional().describe('Search query'),
+  limit: z.number().int().min(1).max(50).optional().describe('Max results (default 10)'),
+});
+
+const searchVideosOutputSchema = z.object({
+  results: z.array(
+    z.object({
+      videoId: z.string(),
+      title: z.string().nullable(),
+      url: z.string().nullable(),
+      duration: z.number().nullable(),
+      uploader: z.string().nullable(),
+      viewCount: z.number().nullable(),
+      thumbnail: z.string().nullable(),
     })
   ),
 });
@@ -489,6 +514,63 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
     }
   );
 
+  /**
+   * Search videos
+   * @param args - Arguments for the tool
+   * @returns Search results
+   */
+  server.registerTool(
+    'search_videos',
+    {
+      title: 'Search videos',
+      description:
+        'Search videos on YouTube via yt-dlp (ytsearch). Returns list of matching videos with metadata. No required parameters; provide query and optional limit.',
+      inputSchema: searchInputSchema,
+      outputSchema: searchVideosOutputSchema,
+      annotations: { readOnlyHint: true, idempotentHint: false },
+    },
+    async (args, _extra) => {
+      const query = typeof args.query === 'string' ? args.query.trim() : '';
+      if (!query) {
+        recordMcpToolError(TOOL_SEARCH_VIDEOS);
+        return toolError('Query is required for search.');
+      }
+
+      const limit = args.limit ?? 10;
+      const sanitizedLimit = Math.min(Math.max(limit, 1), 50);
+
+      let results: Awaited<ReturnType<typeof searchVideos>>;
+      try {
+        results = await searchVideos(query, sanitizedLimit, log);
+      } catch (err) {
+        log.error({ err, tool: TOOL_SEARCH_VIDEOS }, 'MCP tool unexpected error');
+        recordMcpToolError(TOOL_SEARCH_VIDEOS);
+        return toolError(err instanceof Error ? err.message : 'Tool failed.');
+      }
+
+      if (results === null) {
+        recordMcpToolError(TOOL_SEARCH_VIDEOS);
+        return toolError('Failed to search videos.');
+      }
+
+      recordMcpToolCall(TOOL_SEARCH_VIDEOS);
+      const text =
+        results.length === 0
+          ? 'No results found.'
+          : results
+              .map(
+                (r) =>
+                  `- ${r.title ?? 'Untitled'} (${r.videoId}): ${r.url ?? ''} | ${r.uploader ?? ''} | ${r.viewCount != null ? `${r.viewCount} views` : ''}`
+              )
+              .join('\n');
+
+      return {
+        content: [textContent(text)],
+        structuredContent: { results },
+      };
+    }
+  );
+
   const promptUrlArgsSchema = {
     url: z.string().min(1).describe('Video URL or YouTube video ID'),
   };
@@ -568,7 +650,7 @@ export function createMcpServer(opts?: CreateMcpServerOptions) {
         {
           uri: USAGE_URI,
           mimeType: 'text/plain',
-          text: 'Use get_transcript for plain-text subtitles, get_raw_subtitles for SRT/VTT, get_available_subtitles to list languages, get_video_info for metadata, get_video_chapters for chapter markers. All tools accept a video URL or YouTube video ID.',
+          text: 'Use get_transcript for plain-text subtitles, get_raw_subtitles for SRT/VTT, get_available_subtitles to list languages, get_video_info for metadata, get_video_chapters for chapter markers, search_videos to search YouTube. URL-based tools accept a video URL or YouTube video ID.',
         },
       ],
     })

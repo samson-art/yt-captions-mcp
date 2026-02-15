@@ -26,6 +26,7 @@ jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
 jest.mock('./youtube.js', () => ({
   detectSubtitleFormat: jest.fn(),
   parseSubtitles: jest.fn(),
+  searchVideos: jest.fn(),
 }));
 
 jest.mock('./validation.js', () => ({
@@ -39,6 +40,7 @@ jest.mock('./validation.js', () => ({
 
 const detectSubtitleFormatMock = youtube.detectSubtitleFormat as jest.Mock;
 const parseSubtitlesMock = youtube.parseSubtitles as jest.Mock;
+const searchVideosMock = youtube.searchVideos as jest.Mock;
 
 const normalizeVideoInputMock = validation.normalizeVideoInput as jest.Mock;
 const sanitizeLangMock = validation.sanitizeLang as jest.Mock;
@@ -450,6 +452,88 @@ describe('mcp-core tools', () => {
         chapters: [],
       });
       expect(result.content[0].text).toContain('No chapters found');
+    });
+  });
+
+  describe('search_videos', () => {
+    it('should return error when query is empty or omitted', async () => {
+      const server = createMcpServer() as any;
+      const handler = getTool(server, 'search_videos');
+
+      const result1 = await handler({}, {});
+      expect(result1).toMatchObject({ isError: true });
+      expect(result1.content[0].text).toContain('Query is required');
+
+      const result2 = await handler({ query: '' }, {});
+      expect(result2).toMatchObject({ isError: true });
+      expect(result2.content[0].text).toContain('Query is required');
+
+      const result3 = await handler({ query: '   ' }, {});
+      expect(result3).toMatchObject({ isError: true });
+      expect(result3.content[0].text).toContain('Query is required');
+
+      expect(searchVideosMock).not.toHaveBeenCalled();
+    });
+
+    it('should call searchVideos and return results on success', async () => {
+      const server = createMcpServer() as any;
+      const handler = getTool(server, 'search_videos');
+
+      const mockResults = [
+        {
+          videoId: 'vid1',
+          title: 'Video One',
+          url: 'https://www.youtube.com/watch?v=vid1',
+          duration: 120,
+          uploader: 'Channel One',
+          viewCount: 1000,
+          thumbnail: null,
+        },
+      ];
+      searchVideosMock.mockResolvedValue(mockResults);
+
+      const result = await handler({ query: 'test query', limit: 10 }, {});
+
+      expect(searchVideosMock).toHaveBeenCalledWith('test query', 10, expect.anything());
+      expect(result.structuredContent).toEqual({ results: mockResults });
+      expect(result.content[0].text).toContain('Video One');
+      expect(result.content[0].text).toContain('vid1');
+      expect(result.content[0].text).toContain('Channel One');
+    });
+
+    it('should use default limit 10 when limit not provided', async () => {
+      const server = createMcpServer() as any;
+      const handler = getTool(server, 'search_videos');
+
+      searchVideosMock.mockResolvedValue([]);
+
+      await handler({ query: 'test' }, {});
+
+      expect(searchVideosMock).toHaveBeenCalledWith('test', 10, expect.anything());
+    });
+
+    it('should return error when searchVideos returns null', async () => {
+      const server = createMcpServer() as any;
+      const handler = getTool(server, 'search_videos');
+
+      searchVideosMock.mockResolvedValue(null);
+
+      const result = await handler({ query: 'test' }, {});
+
+      expect(result).toMatchObject({ isError: true });
+      expect(result.content[0].text).toContain('Failed to search videos');
+    });
+
+    it('should return No results found when search returns empty array', async () => {
+      const server = createMcpServer() as any;
+      const handler = getTool(server, 'search_videos');
+
+      searchVideosMock.mockResolvedValue([]);
+
+      const result = await handler({ query: 'test' }, {});
+
+      expect(result.structuredContent).toEqual({ results: [] });
+      expect(result.content[0].text).toContain('No results found');
     });
   });
 });

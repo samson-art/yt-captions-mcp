@@ -226,6 +226,20 @@ function getServerCard(): {
         },
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
+      {
+        name: 'search_videos',
+        description:
+          'Search videos on YouTube via yt-dlp (ytsearch). Returns list of matching videos with metadata. No required parameters; provide query and optional limit.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Search query' },
+            limit: { type: 'integer', description: 'Max results (default 10, max 50)' },
+          },
+          required: [],
+        },
+        annotations: { readOnlyHint: true, idempotentHint: false },
+      },
     ],
     resources: [
       {
