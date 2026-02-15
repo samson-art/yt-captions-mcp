@@ -1,0 +1,9 @@
+# Smithery.ai configuration for transcriptor-mcp (URL server).
+# Config schema is used for the server page; the server is published by URL.
+config:
+  properties:
+    authToken:
+      type: string
+      description: "Bearer token for MCP HTTP endpoint. Only needed when the server is deployed with MCP_AUTH_TOKEN set."
+      secret: true
+  required: []

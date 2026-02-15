@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/samson-art/transcriptor-mcp#mcp-config",
+  "title": "Transcriptor MCP configuration",
+  "description": "Optional session configuration for the Transcriptor MCP server. No fields are required. When connecting via Smithery, set authToken in config; the gateway forwards it as the Authorization header to your server.",
+  "type": "object",
+  "properties": {
+    "authToken": {
+      "type": "string",
+      "title": "Bearer token",
+      "description": "Bearer token for the MCP HTTP endpoint. Only needed when the server is deployed with MCP_AUTH_TOKEN set.",
+      "secret": true,
+      "x-from": { "header": "x-mcp-auth-token" },
+      "x-to": { "header": "Authorization" }
+    }
+  },
+  "required": [],
+  "additionalProperties": false,
+  "documentation": {
+    "gettingStarted": {
+      "title": "Getting started",
+      "description": "1. Connect to the server URL (no config required for public instances).\n2. If your deployment uses MCP_AUTH_TOKEN, set the authToken in the session config; the gateway will send it as Authorization: Bearer <token>."
+    },
+    "security": "Keep your auth token secret when the server requires one."
+  }
+}

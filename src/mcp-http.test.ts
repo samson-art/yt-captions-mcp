@@ -138,7 +138,7 @@ describe('mcp-http', () => {
       }
     });
 
-    it('includes configSchema with optional session config', async () => {
+    it('includes configSchema with optional session config (x-from non-reserved, x-to Authorization)', async () => {
       await app.ready();
       const response = await app.inject({
         method: 'GET',
@@ -151,24 +151,39 @@ describe('mcp-http', () => {
         type?: string;
         required?: string[];
         properties?: Record<string, unknown>;
+        $schema?: string;
+        title?: string;
+        additionalProperties?: boolean;
       };
       expect(schema.type).toBe('object');
       expect(schema.required).toEqual([]);
+      expect(schema.$schema).toBe('http://json-schema.org/draft-07/schema#');
+      expect(schema.title).toBeDefined();
+      expect(schema.additionalProperties).toBe(false);
       expect(schema.properties).toHaveProperty('authToken');
       const authTokenProp = (
         schema.properties as Record<
           string,
-          { type?: string; description?: string; 'x-from'?: unknown }
+          {
+            type?: string;
+            description?: string;
+            title?: string;
+            secret?: boolean;
+            'x-from'?: { header?: string };
+            'x-to'?: { header?: string };
+          }
         >
       ).authToken;
       expect(authTokenProp.type).toBe('string');
       expect(typeof authTokenProp.description).toBe('string');
-      expect(authTokenProp['x-from']).toEqual({ header: 'Authorization' });
+      expect(authTokenProp['x-from']).toEqual({ header: 'x-mcp-auth-token' });
+      expect(authTokenProp['x-to']).toEqual({ header: 'Authorization' });
+      expect(authTokenProp.secret).toBe(true);
     });
   });
 
   describe('GET /.well-known/mcp/config-schema.json', () => {
-    it('returns 200 with session config JSON Schema (all optional)', async () => {
+    it('returns 200 with session config JSON Schema (all optional, x-from/x-to)', async () => {
       await app.ready();
       const response = await app.inject({
         method: 'GET',
@@ -180,15 +195,12 @@ describe('mcp-http', () => {
       expect(schema.type).toBe('object');
       expect(schema.required).toEqual([]);
       expect(schema.properties).toHaveProperty('authToken');
-      const authTokenProp = (
-        schema.properties as Record<
-          string,
-          { type?: string; description?: string; 'x-from'?: unknown }
-        >
-      ).authToken;
+      const authTokenProp = schema.properties!.authToken;
       expect(authTokenProp.type).toBe('string');
       expect(typeof authTokenProp.description).toBe('string');
-      expect(authTokenProp['x-from']).toEqual({ header: 'Authorization' });
+      expect(authTokenProp['x-from']).toEqual({ header: 'x-mcp-auth-token' });
+      expect(authTokenProp['x-to']).toEqual({ header: 'Authorization' });
+      expect(authTokenProp.secret).toBe(true);
     });
   });
 
