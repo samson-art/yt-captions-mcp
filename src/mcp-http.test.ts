@@ -145,6 +145,51 @@ describe('mcp-http', () => {
       }
     });
 
+    it('includes title for each tool (Tool Quality)', async () => {
+      await app.ready();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/.well-known/mcp/server-card.json',
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      const expectedTitles: Record<string, string> = {
+        get_transcript: 'Get video transcript',
+        get_raw_subtitles: 'Get raw video subtitles',
+        get_available_subtitles: 'Get available subtitle languages',
+        get_video_info: 'Get video info',
+        get_video_chapters: 'Get video chapters',
+        search_videos: 'Search videos',
+      };
+      for (const tool of body.tools) {
+        expect(tool.title).toBeTruthy();
+        expect(tool.title).toBe(expectedTitles[tool.name]);
+      }
+    });
+
+    it('includes parameter descriptions for get_raw_subtitles (Tool Quality)', async () => {
+      await app.ready();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/.well-known/mcp/server-card.json',
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      const getRawSubtitles = body.tools.find(
+        (t: { name?: string; inputSchema?: { properties?: Record<string, any> } }) =>
+          t.name === 'get_raw_subtitles'
+      );
+      expect(getRawSubtitles).toBeDefined();
+      const properties = getRawSubtitles!.inputSchema?.properties ?? {};
+      const paramKeys = ['url', 'type', 'lang', 'response_limit', 'next_cursor'];
+      for (const key of paramKeys) {
+        expect(properties[key]).toBeDefined();
+        expect(properties[key]).toHaveProperty('description');
+        expect(typeof properties[key].description).toBe('string');
+        expect(properties[key].description!.length).toBeGreaterThan(0);
+      }
+    });
+
     it('includes configSchema with optional session config (x-from non-reserved, x-to Authorization)', async () => {
       await app.ready();
       const response = await app.inject({

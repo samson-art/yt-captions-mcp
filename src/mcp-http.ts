@@ -162,6 +162,7 @@ function getServerCard(): {
   configSchema: typeof MCP_SESSION_CONFIG_SCHEMA;
   tools: Array<{
     name: string;
+    title?: string;
     description: string;
     inputSchema: object;
     annotations: { readOnlyHint: boolean; idempotentHint: boolean };
@@ -179,6 +180,7 @@ function getServerCard(): {
     tools: [
       {
         name: 'get_transcript',
+        title: 'Get video transcript',
         description:
           'Fetch cleaned subtitles as plain text for a video (YouTube, Twitter/X, Instagram, TikTok, Twitch, Vimeo, Facebook, Bilibili, VK, Dailymotion). Input: URL only. Uses auto-discovery for type/language and returns the first chunk with default size.',
         inputSchema: {
@@ -190,16 +192,31 @@ function getServerCard(): {
       },
       {
         name: 'get_raw_subtitles',
+        title: 'Get raw video subtitles',
         description:
           'Fetch raw SRT/VTT subtitles for a video (supported platforms). Optional lang: when omitted and Whisper fallback is used, language is auto-detected.',
         inputSchema: {
           type: 'object',
           properties: {
             url: { type: 'string', description: 'Video URL or YouTube video ID' },
-            type: { type: 'string', enum: ['official', 'auto'] },
-            lang: { type: 'string' },
-            response_limit: { type: 'integer' },
-            next_cursor: { type: 'string' },
+            type: {
+              type: 'string',
+              enum: ['official', 'auto'],
+              description: 'Subtitle track type: official or auto-generated',
+            },
+            lang: {
+              type: 'string',
+              description:
+                'Language code (e.g. en, es). When omitted with Whisper fallback, language is auto-detected',
+            },
+            response_limit: {
+              type: 'integer',
+              description: 'Max characters per response (default 50000, min 1000, max 200000)',
+            },
+            next_cursor: {
+              type: 'string',
+              description: 'Opaque cursor from previous response for pagination',
+            },
           },
           required: ['url'],
         },
@@ -207,6 +224,7 @@ function getServerCard(): {
       },
       {
         name: 'get_available_subtitles',
+        title: 'Get available subtitle languages',
         description: 'List available official and auto-generated subtitle languages.',
         inputSchema: {
           type: 'object',
@@ -217,6 +235,7 @@ function getServerCard(): {
       },
       {
         name: 'get_video_info',
+        title: 'Get video info',
         description:
           'Fetch extended metadata for a video (title, channel, duration, tags, thumbnails, etc.).',
         inputSchema: {
@@ -228,6 +247,7 @@ function getServerCard(): {
       },
       {
         name: 'get_video_chapters',
+        title: 'Get video chapters',
         description: 'Fetch chapter markers (start/end time, title) for a video.',
         inputSchema: {
           type: 'object',
@@ -238,6 +258,7 @@ function getServerCard(): {
       },
       {
         name: 'search_videos',
+        title: 'Search videos',
         description:
           'Search videos on YouTube via yt-dlp (ytsearch). Returns list of matching videos with metadata. Optional: limit, offset (pagination), uploadDateFilter (hour|today|week|month|year), response_format (json|markdown).',
         inputSchema: {

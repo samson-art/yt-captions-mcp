@@ -49,10 +49,27 @@ const baseInputSchema = z.object({
 });
 
 const subtitleInputSchema = baseInputSchema.extend({
-  type: z.enum(['official', 'auto']).optional(),
-  lang: z.string().optional(),
-  response_limit: z.number().int().min(MIN_RESPONSE_LIMIT).max(MAX_RESPONSE_LIMIT).optional(),
-  next_cursor: z.string().optional(),
+  type: z
+    .enum(['official', 'auto'])
+    .optional()
+    .describe('Subtitle track type: official or auto-generated'),
+  lang: z
+    .string()
+    .optional()
+    .describe(
+      'Language code (e.g. en, es). When omitted with Whisper fallback, language is auto-detected'
+    ),
+  response_limit: z
+    .number()
+    .int()
+    .min(MIN_RESPONSE_LIMIT)
+    .max(MAX_RESPONSE_LIMIT)
+    .optional()
+    .describe('Max characters per response (default 50000, min 1000, max 200000)'),
+  next_cursor: z
+    .string()
+    .optional()
+    .describe('Opaque cursor from previous response for pagination'),
 });
 
 const transcriptOutputSchema = z.object({
