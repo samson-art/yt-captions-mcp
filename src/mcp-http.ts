@@ -18,6 +18,7 @@ import {
 import { ensureAuth, getHeaderValue } from './mcp-auth.js';
 import { createMcpServer } from './mcp-core.js';
 import { version } from './version.js';
+import { readChangelog } from './changelog.js';
 import * as Sentry from '@sentry/node';
 import { checkYtDlpAtStartup } from './yt-dlp-check.js';
 import { createLoggerWithSentryBreadcrumbs } from './logger-sentry-breadcrumbs.js';
@@ -403,6 +404,11 @@ app.get('/metrics', async (_request, reply) => {
 
 app.get('/failures', async (_request, reply) => {
   return reply.code(200).send(getFailedSubtitlesUrls());
+});
+
+app.get('/changelogs', async (_request, reply) => {
+  const content = await readChangelog();
+  return reply.header('Content-Type', 'text/markdown; charset=utf-8').code(200).send(content);
 });
 
 function updateMcpSessionGauges(): void {

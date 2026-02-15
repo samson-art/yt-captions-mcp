@@ -86,6 +86,19 @@ describe('mcp-http', () => {
     });
   });
 
+  describe('GET /changelogs', () => {
+    it('returns 200 with CHANGELOG.md content as markdown', async () => {
+      await app.ready();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/changelogs',
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('text/markdown');
+      expect(response.payload).toContain('# Changelog');
+    });
+  });
+
   describe('GET /.well-known/mcp/server-card.json', () => {
     it('returns 200 with complete server card (tools, prompts, resources, SEP-1649, configSchema, Tool Quality)', async () => {
       await app.ready();

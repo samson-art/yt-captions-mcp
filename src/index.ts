@@ -25,6 +25,7 @@ import { close as closeCache, ping as cachePing } from './cache.js';
 import * as Sentry from '@sentry/node';
 import { recordRequest, renderPrometheus, getFailedSubtitlesUrls } from './metrics.js';
 import { createLoggerWithSentryBreadcrumbs } from './logger-sentry-breadcrumbs.js';
+import { readChangelog } from './changelog.js';
 
 // Response schemas for OpenAPI/Swagger
 const ErrorResponseSchema = Type.Object({
@@ -149,6 +150,11 @@ fastify.get('/metrics', async (_request, reply) => {
 
 fastify.get('/failures', async (_request, reply) => {
   return reply.code(200).send(getFailedSubtitlesUrls());
+});
+
+fastify.get('/changelogs', async (_request, reply) => {
+  const content = await readChangelog();
+  return reply.header('Content-Type', 'text/markdown; charset=utf-8').code(200).send(content);
 });
 
 const requestStartTimes = new WeakMap<object, number>();

@@ -18,6 +18,7 @@ These are used by the Fastify REST API in `src/index.ts`.
 
 - **`YT_DLP_TIMEOUT`** – timeout for the yt-dlp command in milliseconds  
   - Default: `60000` (60 seconds)
+- **`YT_DLP_AUDIO_TIMEOUT`** – timeout for audio download only (Whisper fallback). Falls back to `YT_DLP_TIMEOUT` when unset. Use a higher value for long videos (e.g. 5 hours): at ~420 KiB/s, 5 h audio takes ~12 min; set `900000` (15 min) or more.
 - **`YT_DLP_JS_RUNTIMES`** – JS runtime(s) for yt-dlp extraction  
   - Examples: `node`, `node:/usr/bin/node`
 - **`YT_DLP_SKIP_VERSION_CHECK`** – if set to `1`, the app does not fetch the latest yt-dlp version from GitHub and does not log a WARNING when the installed version is older. The presence of yt-dlp in the system is still checked at startup.
@@ -127,7 +128,7 @@ Local mode is compatible with [whisper-asr-webservice](https://github.com/ahmeto
 - **`WHISPER_API_KEY`** – API key (required when `WHISPER_MODE=api`); never logged
 - **`WHISPER_API_BASE_URL`** – base URL (default: `https://api.openai.com/v1`) for custom endpoints
 
-Flow: the app downloads audio with yt-dlp (using format `bestaudio[abr<=192]/bestaudio` and `--audio-quality 5` by default to reduce download size and time without hurting speech recognition), sends it to Whisper, and returns the transcript as subtitles (SRT/VTT or plain text). Long videos may hit API size limits (e.g. OpenAI 25 MB); failures are logged and the client receives the same "Subtitles not found" response as when Whisper is disabled.
+Flow: the app downloads audio with yt-dlp (using format `bestaudio[abr<=192]/bestaudio` and `--audio-quality 5` by default to reduce download size and time without hurting speech recognition), sends it to Whisper, and returns the transcript as subtitles (SRT/VTT or plain text). Long videos may hit API size limits (e.g. OpenAI 25 MB); failures are logged and the client receives the same "Subtitles not found" response as when Whisper is disabled. For videos up to 5 hours: use `YT_DLP_AUDIO_TIMEOUT=900000`, `WHISPER_TIMEOUT=3600000`, and **local Whisper** only (API mode cannot accept files >25 MB).
 
 **Docker on Mac:** GPU is not available inside Docker (the Linux VM has no access to the host GPU). To speed up local Whisper on a MacBook, use a smaller model in the Whisper service (e.g. `ASR_MODEL=tiny` in the container env) or run Whisper natively with Metal support and point `WHISPER_BASE_URL` to that service.
 

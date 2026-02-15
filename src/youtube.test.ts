@@ -333,6 +333,8 @@ Hello world`;
       jest.clearAllMocks();
       delete process.env.YT_DLP_AUDIO_FORMAT;
       delete process.env.YT_DLP_AUDIO_QUALITY;
+      delete process.env.YT_DLP_AUDIO_TIMEOUT;
+      delete process.env.YT_DLP_TIMEOUT;
     });
 
     it('should pass format and audio-quality to yt-dlp and return path to audio file', async () => {
@@ -402,6 +404,48 @@ Hello world`;
       expect(capturedArgs[formatIdx + 1]).toBe('bestaudio[abr<=128]/ba');
       const qualityIdx = capturedArgs.indexOf('--audio-quality');
       expect(capturedArgs[qualityIdx + 1]).toBe('7');
+
+      await unlink(audioFilePath).catch(() => {});
+      dateSpy.mockRestore();
+    });
+
+    it('should use YT_DLP_AUDIO_TIMEOUT when set, else YT_DLP_TIMEOUT', async () => {
+      const timestamp = 1234567896;
+      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(timestamp);
+      const tempDir = tmpdir();
+      const baseName = urlToSafeBase(url, 'audio');
+      const audioFilePath = join(tempDir, `${baseName}.m4a`);
+      await writeFile(audioFilePath, 'fake audio', 'utf-8');
+
+      let capturedOptions: { timeout?: number } = {};
+      execFileMock.mockImplementation(
+        (
+          _file: string,
+          _args: string[],
+          options: { timeout?: number },
+          callback: (error: Error | null, result: { stdout: string; stderr: string }) => void
+        ) => {
+          capturedOptions = options;
+          callback(null, { stdout: '', stderr: '' });
+        }
+      );
+
+      process.env.YT_DLP_AUDIO_TIMEOUT = '900000';
+      await downloadAudio(url);
+      expect(capturedOptions.timeout).toBe(900000);
+      await unlink(audioFilePath).catch(() => {});
+
+      delete process.env.YT_DLP_AUDIO_TIMEOUT;
+      process.env.YT_DLP_TIMEOUT = '120000';
+      await writeFile(audioFilePath, 'fake audio', 'utf-8');
+      await downloadAudio(url);
+      expect(capturedOptions.timeout).toBe(120000);
+      await unlink(audioFilePath).catch(() => {});
+
+      delete process.env.YT_DLP_TIMEOUT;
+      await writeFile(audioFilePath, 'fake audio', 'utf-8');
+      await downloadAudio(url);
+      expect(capturedOptions.timeout).toBe(60000);
 
       await unlink(audioFilePath).catch(() => {});
       dateSpy.mockRestore();

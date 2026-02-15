@@ -1,6 +1,6 @@
 {
   "name": "transcriptor-mcp",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "description": "API for downloading subtitles from YouTube videos",
   "type": "module",
   "main": "dist/index.js",

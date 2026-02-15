@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.9] - 2026-02-15
+
+### Added
+
+- **`YT_DLP_AUDIO_TIMEOUT`:** Separate timeout for audio download (Whisper fallback). Falls back to `YT_DLP_TIMEOUT` when unset. Enables processing videos up to 5 hours at slow download speeds (e.g. at ~420 KiB/s, 5 h audio needs ~15 min; set `900000` ms). Documented in `docs/configuration.md` and `.env.example`.
+- **`GET /changelogs`:** REST API and MCP HTTP servers now expose `GET /changelogs`, returning `CHANGELOG.md` as `text/markdown` for programmatic access.
+
+### Changed
+
+- **Long videos (5+ hours):** `docs/configuration.md` — added `YT_DLP_AUDIO_TIMEOUT` and guidance for 5-hour videos (use local Whisper, `WHISPER_TIMEOUT=3600000`; Whisper API max 25 MB).
+
 ## [0.5.8] - 2026-02-15
 
 ### Added

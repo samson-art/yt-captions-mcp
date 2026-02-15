@@ -368,9 +368,11 @@ export async function downloadAudio(
 
   try {
     await logCookiesFileStatus(logger, cookiesFilePathFromEnv);
-    const timeout = process.env.YT_DLP_TIMEOUT
-      ? Number.parseInt(process.env.YT_DLP_TIMEOUT, 10)
-      : 60000;
+    const timeout = process.env.YT_DLP_AUDIO_TIMEOUT
+      ? Number.parseInt(process.env.YT_DLP_AUDIO_TIMEOUT, 10)
+      : process.env.YT_DLP_TIMEOUT
+        ? Number.parseInt(process.env.YT_DLP_TIMEOUT, 10)
+        : 60000;
     logger?.info('Downloading audio for Whisper');
     await execFileAsync('yt-dlp', args, {
       maxBuffer: 10 * 1024 * 1024,
