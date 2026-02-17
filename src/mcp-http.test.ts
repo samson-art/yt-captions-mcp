@@ -136,7 +136,7 @@ describe('mcp-http', () => {
       for (const tool of body.tools) {
         expect(tool.title).toBe(expectedTitles[tool.name]);
         expect(tool.annotations?.readOnlyHint).toBe(true);
-        expect(tool.annotations?.idempotentHint).toBe(tool.name === 'search_videos' ? false : true);
+        expect(tool.annotations?.idempotentHint).toBe(tool.name !== 'search_videos');
       }
       const getRawSubtitles = body.tools.find(
         (t: { name?: string }) => t.name === 'get_raw_subtitles'
@@ -351,8 +351,11 @@ describe('mcp-http', () => {
           } as any;
           expect(resolvePublicBaseUrlForRequest(req, allowedUrls)).toBe(smitheryUrl);
         } finally {
-          if (orig !== undefined) process.env[envKey] = orig;
-          else delete process.env[envKey];
+          if (orig === undefined) {
+            delete process.env[envKey];
+          } else {
+            process.env[envKey] = orig;
+          }
         }
       });
 

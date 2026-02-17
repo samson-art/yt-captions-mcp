@@ -14,6 +14,10 @@ The detailed documentation is split into focused guides:
 
 - [Summarize video](use-case-summarize-video.md) — fetch transcript and summarize with the model
 - [Search and get transcript](use-case-search-and-transcript.md) — search YouTube, then get transcript of chosen videos
+- [IDE and AI assistants (Cursor, Claude, VS Code)](use-case-ide-cursor-claude.md) — scenarios for developers and power users: Smithery, prompts, tool chains
+- [No-code automation (n8n)](use-case-n8n-automation.md) — workflows with streamable HTTP: search → transcript, playlist batch, pagination
+- [Researchers and batch processing](use-case-researchers-batch.md) — search filters, playlist transcripts, pagination for long videos; REST API and self-host
+- [Self-hosted and enterprise](use-case-self-hosted.md) — Docker, auth, Redis, Prometheus, Sentry, and monitoring
 
 If you are unsure where to start:
 

@@ -45,7 +45,7 @@ Transcriptor MCP is the best choice when you need **transcripts and metadata** f
 - **Remote and production** — MCP over HTTP/SSE, optional auth, Redis cache, Prometheus metrics; **connect in one click** via [Smithery](https://smithery.ai/servers/samson-art/transcriptor-mcp) with no local install.
 - **No media downloads** — we focus on text and metadata only. For downloading videos or audio.
 
-See [Summarize video](docs/use-case-summarize-video.md) and [Search and get transcript](docs/use-case-search-and-transcript.md) for step-by-step use cases.
+See [docs](docs/README.md) for step-by-step use cases: summarize video, search and transcript, [IDE/Cursor/Claude](docs/use-case-ide-cursor-claude.md), [n8n automation](docs/use-case-n8n-automation.md), [researchers and batch](docs/use-case-researchers-batch.md), and [self-hosted/enterprise](docs/use-case-self-hosted.md).
 
 ## Quick Start (no install)
 

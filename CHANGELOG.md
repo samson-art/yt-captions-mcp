@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-02-17
+
+### Added
+
+- **Use-case documentation:** Four new guides in `docs/`: [IDE and AI assistants (Cursor, Claude, VS Code)](docs/use-case-ide-cursor-claude.md), [No-code automation (n8n)](docs/use-case-n8n-automation.md), [Researchers and batch processing](docs/use-case-researchers-batch.md), and [Self-hosted and enterprise](docs/use-case-self-hosted.md). Linked from main README and `docs/README.md`.
+
+### Changed
+
+- **README:** Use-case section now references `docs/README.md` with the full list of guides (summarize video, search and transcript, IDE/Cursor/Claude, n8n, researchers/batch, self-hosted).
+- **mcp-http.test.ts:** Simplified `idempotentHint` assertion for server-card tools; corrected env var cleanup order in `resolvePublicBaseUrlForRequest` test.
+
 ## [0.6.3] - 2026-02-15
 
 ### Added
